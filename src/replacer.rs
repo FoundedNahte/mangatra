@@ -60,7 +60,7 @@ pub fn write_text(
 
         let stop_x = width - (width / 16);
 
-        let font = Vec::from(include_bytes!("../target/debug/mangat.ttf") as &[u8]);
+        let font = Vec::from(include_bytes!("../assets/mangat.ttf") as &[u8]);
         let font = Font::try_from_vec(font).expect("Could not unwrap Font.");
 
         let mut curr_line_size = 0;
