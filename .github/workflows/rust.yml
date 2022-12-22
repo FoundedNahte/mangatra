@@ -73,8 +73,3 @@ jobs:
         run: |
           cargo clippy --all-features
           cargo clippy -- --D warnings
-<<<<<<< HEAD
-    
-=======
-    
->>>>>>> e82a211355c1fe7c818fa1eac2d019f8bacd1e4f
