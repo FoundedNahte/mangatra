@@ -23,6 +23,18 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
+    - name: Cache Cargo
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/   
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-
+          
     - name: Build
       run: cargo build --verbose
     - name: Run tests
@@ -34,16 +46,29 @@ jobs:
     
     steps:
       - uses: actions/checkout@v3
+      - name: Install Tesseract
+        run: sudo apt-get install libleptonica-dev libtesseract-dev clang tesseract-ocr-eng
+      - name: Install OpenCV
+        run: sudo apt-get install libopencv-dev
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           components: rustfmt, clippy
-      
+      - name: Cache Cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/   
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
       - name: Formatting Check
         run: | 
           cargo fmt --all -- --check
-      
       - name: Lint Check
         run: |
           cargo clippy --all-features
