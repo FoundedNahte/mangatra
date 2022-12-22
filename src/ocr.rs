@@ -7,7 +7,7 @@ use opencv::{core, imgcodecs};
 fn encode_in_tiff(data: &core::Mat, count: i32) -> Result<Vec<u8>> {
     let mut buffer: core::Vector<u8> = core::Vector::new();
 
-    //imgcodecs::imwrite(&format!("{count}.png"), data, &core::Vector::new())?;
+    imgcodecs::imwrite(&format!("{count}.png"), data, &core::Vector::new())?;
 
     imgcodecs::imencode(".tiff", &data, &mut buffer, &core::Vector::new())?;
 

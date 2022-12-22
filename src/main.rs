@@ -40,7 +40,8 @@ fn main() {
 
             let original_image = imgcodecs::imread("img.jpg", imgcodecs::IMREAD_COLOR).unwrap();
 
-            let result = replace_text_regions(&original_image, &translated_regions, &origins).unwrap();
+            let result =
+                replace_text_regions(&original_image, &translated_regions, &origins).unwrap();
 
             imgcodecs::imwrite("test.png", &result, &core::Vector::new());
         }

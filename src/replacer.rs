@@ -69,10 +69,38 @@ pub fn write_text(
 
         let mut temp_lines: Vec<String> = Vec::new();
 
-        let scale = Scale {
+        let num_words = split_text
+            .clone()
+            .map(str::to_string)
+            .collect::<Vec<String>>()
+            .len();
+
+
+        /* 
+            Scaling rules based on width of the region
+            and number of words.
+        */
+        let mut scale = Scale {
             x: height as f32 / 9.0,
             y: height as f32 / 12.0,
         };
+
+        if width < 55 {
+            scale.x = height as f32 / 7.0;
+            scale.y = height as f32 / 10.0;
+        } else if width < 100 {
+            scale.x = height as f32 / 8.0;
+            scale.y = height as f32 / 10.0;
+        }
+
+        if num_words > 10 {
+            scale.x = height as f32 / 10.0;
+            scale.y = height as f32 / 13.0;
+        } else if num_words <= 2 {
+            scale.x = height as f32 / 7.0;
+            scale.y = height as f32 / 9.0;
+        }
+
 
         let mut curr_line = String::new();
 
@@ -107,7 +135,11 @@ pub fn write_text(
             let (text_width, _) = drawing::text_size(scale, &font, &line);
 
             if text_width > stop_x as i32 - 5 {
-                let num_words = line.split(" ").map(str::to_string).collect::<Vec<String>>().len();
+                let num_words = line
+                    .split(" ")
+                    .map(str::to_string)
+                    .collect::<Vec<String>>()
+                    .len();
 
                 /*
                     If the line is a single word and it's still too long,
@@ -125,7 +157,9 @@ pub fn write_text(
                         // We move the last char from the original line to the beginning of the new line
                         new_line.insert(
                             0,
-                            chars.pop().expect("Unexpected error while popping from char vector."),
+                            chars
+                                .pop()
+                                .expect("Unexpected error while popping from char vector."),
                         );
                         // Rebuild the updated original line for checking.
                         original_line = chars.iter().collect();
@@ -133,23 +167,25 @@ pub fn write_text(
 
                     // Push the updated original line
                     lines.push(original_line);
-                
+
                     // Push the new line
                     if new_line.len() != 0 {
                         let new_line = new_line.iter().collect();
-        
+
                         lines.push(new_line);
                     }
                 } else {
                     let mut words: Vec<String> = line.split(" ").map(str::to_string).collect();
-                    
+
                     let mut original_line = words.join(" ");
                     let mut new_line: Vec<String> = Vec::new();
 
                     while drawing::text_size(scale, &font, &original_line).0 > stop_x as i32 - 5 {
                         new_line.insert(
                             0,
-                            words.pop().expect("Unexpected error while popping from word vector."),
+                            words
+                                .pop()
+                                .expect("Unexpected error while popping from word vector."),
                         );
 
                         original_line = words.join(" ");
@@ -162,7 +198,6 @@ pub fn write_text(
                     if new_line.len() != 0 {
                         lines.push(new_line.join(" "));
                     }
-                    
                 }
             } else {
                 // If the line is fine, append it and continue
@@ -171,7 +206,7 @@ pub fn write_text(
                 }
             }
         }
-       
+
         for line in lines {
             drawing::draw_text_mut(
                 &mut canvas,
@@ -204,7 +239,7 @@ pub fn write_text(
 pub fn replace_text_regions(
     original_image: &core::Mat,
     text_regions: &core::Vector<core::Mat>,
-    origins: &Vec<(i32, i32)>
+    origins: &Vec<(i32, i32)>,
 ) -> Result<core::Mat> {
     let full_width = original_image.cols();
     let full_height = original_image.rows();
