@@ -126,7 +126,7 @@ fn format_image() -> Result<cv::core::Mat> {
     Ok(resized)
 }
 
-pub fn run_inference() -> Result<cv::core::Vector<cv::core::Mat>> {
+pub fn run_inference(padding: i32) -> Result<(cv::core::Vector<cv::core::Mat>, Vec<(i32, i32)>)> {
     let mut model = dnn::read_net("best.onnx", "", "")?;
     let input: cv::core::Mat = format_image()?;
 
@@ -173,12 +173,15 @@ pub fn run_inference() -> Result<cv::core::Vector<cv::core::Mat>> {
         highgui::destroy_all_windows()?;
     */
     let mut text_regions: cv::core::Vector<cv::core::Mat> = cv::core::Vector::new();
+    let mut origins: Vec<(i32, i32)> = Vec::new();
 
     for bbox in boxes {
-        let padded_bbox: Rect2i = Rect2i::new(bbox.x, bbox.y, bbox.width + 10, bbox.height + 10);
+        let padded_bbox: Rect2i =
+            Rect2i::new(bbox.x, bbox.y, bbox.width + padding, bbox.height + padding);
 
         text_regions.push(cv::core::Mat::roi(&original_image, padded_bbox)?);
+        origins.push((bbox.x, bbox.y));
     }
 
-    Ok(text_regions)
+    Ok((text_regions, origins))
 }
