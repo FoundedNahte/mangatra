@@ -75,8 +75,7 @@ pub fn write_text(
             .collect::<Vec<String>>()
             .len();
 
-
-        /* 
+        /*
             Scaling rules based on width of the region
             and number of words.
         */
@@ -100,7 +99,6 @@ pub fn write_text(
             scale.x = height as f32 / 7.0;
             scale.y = height as f32 / 9.0;
         }
-
 
         let mut curr_line = String::new();
 

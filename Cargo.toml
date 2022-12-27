@@ -16,3 +16,4 @@ serde = { versions = "1.0.151", features = ["derive"] }
 image = "0.24.5"
 imageproc = "0.23.0"
 rusttype = "0.9.3"
+clap = "4.0.32"

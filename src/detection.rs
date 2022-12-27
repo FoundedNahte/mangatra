@@ -107,17 +107,17 @@ fn format_image() -> Result<cv::core::Mat> {
 
     let padding: cv::core::Mat;
 
-    if max == rows && max != cols {
-        padding = cv::core::Mat::zeros(rows, rows - cols, cv::core::CV_8UC3)?.to_mat()?;
-    } else if max == cols && max != rows {
-        padding = cv::core::Mat::zeros(cols - rows, cols, cv::core::CV_8UC3)?.to_mat()?;
-    } else {
-        padding = cv::core::Mat::zeros(0, 0, cv::core::CV_8UC3)?.to_mat()?;
-    }
-
     let mut resized: cv::core::Mat = cv::core::Mat::zeros(max, max, cv::core::CV_32F)?.to_mat()?;
 
-    cv::core::hconcat2(&image, &padding, &mut resized)?;
+    if max == rows && max != cols {
+        padding = cv::core::Mat::zeros(rows, rows - cols, cv::core::CV_8UC3)?.to_mat()?;
+        cv::core::hconcat2(&image, &padding, &mut resized)?;
+    } else if max == cols && max != rows {
+        padding = cv::core::Mat::zeros(cols - rows, cols, cv::core::CV_8UC3)?.to_mat()?;
+        cv::core::vconcat2(&image, &padding, &mut resized)?;
+    } else {
+        resized = cv::core::Mat::copy(&image)?;
+    }
 
     highgui::imshow("resized", &resized)?;
     highgui::wait_key(2000)?;
