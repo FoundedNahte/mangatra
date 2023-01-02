@@ -1,52 +1,61 @@
+mod config;
 mod detection;
 mod ocr;
 mod replacer;
 mod translation;
 
-use detection::run_inference;
-use ocr::extract_text;
+use anyhow::Result;
+use config::{Config, InputMode};
+use detection::Detector;
+use ocr::OCR;
 use opencv::{core, imgcodecs};
-use replacer::{mat_to_image_buffer, replace_text_regions, write_text};
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::LineWriter;
+use replacer::Replacer;
 use translation::translate;
-fn main() {
-    println!("RUNNING");
-    match run_inference(10) {
-        Ok((text_regions, origins)) => {
-            let extracted_text = extract_text(&text_regions).unwrap();
-            let translated_text = translate(extracted_text.clone()).unwrap();
 
-            let file = File::create("detected.txt").unwrap();
-            let mut file = LineWriter::new(file);
 
-            let translation_file = File::create("translation.txt").unwrap();
-            let mut translation_file = LineWriter::new(translation_file);
+fn run_single_translation(
+    input: &str,
+    output: &str,
+    padding: u16,
+    detector: &mut Detector,
+    ocr: &mut OCR,
+) -> Result<()> {
+    let (text_regions, origins) = detector.run_inference(input)?;
 
-            let translated_text = translate(extracted_text.clone()).unwrap();
+    let extracted_text = ocr.extract_text(&text_regions)?;
 
-            for text in extracted_text {
-                file.write_all(text.as_bytes());
-                file.write_all("\n".as_bytes());
-            }
+    let translated_text = translate(extracted_text.clone())?;
 
-            for text in translated_text.clone() {
-                translation_file.write_all(text.as_bytes());
-                translation_file.write_all("\n".as_bytes());
-            }
+    let original_image = imgcodecs::imread(input, imgcodecs::IMREAD_COLOR)?;
 
-            let translated_regions = write_text(&text_regions, &translated_text).unwrap();
+    let replacer = Replacer::new(text_regions, translated_text, origins, original_image)?;
 
-            let original_image = imgcodecs::imread("img.jpg", imgcodecs::IMREAD_COLOR).unwrap();
+    let final_image = replacer.replace_text_regions()?;
 
-            let result =
-                replace_text_regions(&original_image, &translated_regions, &origins).unwrap();
+    imgcodecs::imwrite(output, &final_image, &core::Vector::new())?;
 
-            imgcodecs::imwrite("test.png", &result, &core::Vector::new());
-        }
-        Err(e) => {
-            eprintln!("{e}");
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let config = Config::parse()?;
+
+    let mut detector = Detector::new(&config.model, config.padding)?;
+
+    let mut ocr = OCR::new("C:/tools/tesseract/tessdata")?;
+
+    match config.input_mode {
+        InputMode::Directory => {}
+        InputMode::Image => {
+            run_single_translation(
+                &config.input,
+                &config.output,
+                config.padding,
+                &mut detector,
+                &mut ocr,
+            )?;
         }
     }
+
+    Ok(())
 }
