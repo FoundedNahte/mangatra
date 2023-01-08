@@ -2,15 +2,15 @@ use anyhow::Result;
 use leptess::{LepTess, Variable};
 use opencv::{core, imgcodecs};
 
-pub struct OCR {
+pub struct Ocr {
     leptess: LepTess,
 }
 
-impl OCR {
-    pub fn new(data_path: &str) -> Result<OCR> {
+impl Ocr {
+    pub fn new(data_path: &str) -> Result<Ocr> {
         let leptess = LepTess::new(Some(data_path), "jpn_vert")?;
 
-        Ok(OCR { leptess })
+        Ok(Ocr { leptess })
     }
 
     pub fn extract_text(&mut self, text_boxes: &core::Vector<core::Mat>) -> Result<Vec<String>> {
@@ -19,6 +19,15 @@ impl OCR {
 
         let mut extracted_text: Vec<String> = Vec::new();
 
+        for (count, bbox) in (0_i32..).zip(text_boxes.into_iter()) {
+            let encoded_data = Self::encode_in_tiff(&bbox, count)?;
+
+            self.leptess.set_image_from_mem(&encoded_data[..])?;
+
+            extracted_text.push(self.leptess.get_utf8_text()?);
+        }
+
+        /*
         let mut count: i32 = 0;
 
         for bbox in text_boxes {
@@ -30,7 +39,7 @@ impl OCR {
 
             count += 1;
         }
-
+        */
         Ok(extracted_text)
     }
 

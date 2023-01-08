@@ -9,6 +9,7 @@ pub struct Replacer {
     translated_text: Vec<String>,
     origins: Vec<(i32, i32)>,
     original_image: core::Mat,
+    padding: u16,
 }
 
 impl Replacer {
@@ -17,12 +18,14 @@ impl Replacer {
         translated_text: Vec<String>,
         origins: Vec<(i32, i32)>,
         original_image: core::Mat,
+        padding: u16,
     ) -> Result<Replacer> {
         Ok(Replacer {
             text_regions,
             translated_text,
             origins,
             original_image,
+            padding,
         })
     }
 
@@ -156,7 +159,7 @@ impl Replacer {
 
             let mut curr_line_size = 0;
 
-            let split_text = text.split(" ");
+            let split_text = text.split(' ');
 
             let mut temp_lines: Vec<String> = Vec::new();
 
@@ -198,23 +201,23 @@ impl Replacer {
             for word in split_text {
                 let (text_width, _) = drawing::text_size(scale, &font, word);
 
-                if curr_line_size + text_width + width_of_space > stop_x as i32 - 10 {
+                if curr_line_size + text_width + width_of_space
+                    > stop_x as i32 - self.padding as i32
+                {
                     temp_lines.push(curr_line);
                     curr_line = String::from(word);
                     curr_line_size = text_width;
+                } else if temp_lines.is_empty() && curr_line.is_empty() {
+                    curr_line.push_str(word);
                 } else {
-                    if temp_lines.len() == 0 && curr_line.len() == 0 {
-                        curr_line.push_str(word);
-                    } else {
-                        curr_line.push_str(" ");
-                        curr_line.push_str(word);
-                        curr_line_size += width_of_space;
-                        curr_line_size += text_width;
-                    }
+                    curr_line.push(' ');
+                    curr_line.push_str(word);
+                    curr_line_size += width_of_space;
+                    curr_line_size += text_width;
                 }
             }
 
-            println!("lines: {:?}", temp_lines);
+            println!("lines: {temp_lines:?}");
 
             temp_lines.push(curr_line);
 
@@ -223,9 +226,9 @@ impl Replacer {
             for line in temp_lines {
                 let (text_width, _) = drawing::text_size(scale, &font, &line);
 
-                if text_width > stop_x as i32 - 5 {
+                if text_width > stop_x as i32 - self.padding as i32 {
                     let num_words = line
-                        .split(" ")
+                        .split(' ')
                         .map(str::to_string)
                         .collect::<Vec<String>>()
                         .len();
@@ -233,7 +236,6 @@ impl Replacer {
                     /*
                         If the line is a single word and it's still too long,
                         we make a new line at the closest char to the border.
-
                         If there are multiple words in the line, we find the
                         closest word to the border and make a newline there.
                     */
@@ -242,7 +244,8 @@ impl Replacer {
                         let mut original_line: String = chars.iter().collect();
                         let mut new_line: Vec<char> = Vec::new();
 
-                        while drawing::text_size(scale, &font, &original_line).0 > stop_x as i32 - 5
+                        while drawing::text_size(scale, &font, &original_line).0
+                            > stop_x as i32 - self.padding as i32
                         {
                             // We move the last char from the original line to the beginning of the new line
                             new_line.insert(
@@ -259,18 +262,19 @@ impl Replacer {
                         lines.push(original_line);
 
                         // Push the new line
-                        if new_line.len() != 0 {
+                        if !new_line.is_empty() {
                             let new_line = new_line.iter().collect();
 
                             lines.push(new_line);
                         }
                     } else {
-                        let mut words: Vec<String> = line.split(" ").map(str::to_string).collect();
+                        let mut words: Vec<String> = line.split(' ').map(str::to_string).collect();
 
                         let mut original_line = words.join(" ");
                         let mut new_line: Vec<String> = Vec::new();
 
-                        while drawing::text_size(scale, &font, &original_line).0 > stop_x as i32 - 5
+                        while drawing::text_size(scale, &font, &original_line).0
+                            > stop_x as i32 - self.padding as i32
                         {
                             new_line.insert(
                                 0,
@@ -286,13 +290,13 @@ impl Replacer {
                         lines.push(original_line);
 
                         // Push the new line
-                        if new_line.len() != 0 {
+                        if !new_line.is_empty() {
                             lines.push(new_line.join(" "));
                         }
                     }
                 } else {
                     // If the line is fine, append it and continue
-                    if line.len() != 0 {
+                    if !line.is_empty() {
                         lines.push(line.to_string());
                     }
                 }
@@ -308,7 +312,9 @@ impl Replacer {
                     &font,
                     &line,
                 );
-                start_y += text_height as i32 + 15;
+
+                // 15 is an arbitrary number used to account for space between lines
+                start_y += text_height + 15;
             }
 
             canvases.push(canvas);
