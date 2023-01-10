@@ -1,4 +1,4 @@
-use anyhow::{bail, ensure, Result, anyhow};
+use anyhow::{anyhow, bail, ensure, Result};
 use clap::Parser;
 use std::path::{Path, PathBuf};
 
@@ -97,13 +97,13 @@ impl Config {
                 "A path to a text json is required for replace mode."
             );
         }
-  
+
         // Determining input type (directory or single image)
         let input_mode = Self::get_input_mode(&cli.input)?;
 
         // If supplied an output path, check to see if it's the same type as the input
         // Otherwise use a default path based on whether running normally or in extract mode
-        let output =  Self::get_output_path(cli.output, cli.extract_mode, input_mode)?;
+        let output = Self::get_output_path(cli.output, cli.extract_mode, input_mode)?;
 
         // Make sure the model file is in the ONNX format
         Self::validate_model(&cli.model)?;
@@ -144,10 +144,15 @@ impl Config {
             PathType::Output(path) => path,
             PathType::Model(path) => path,
             PathType::Text(Some(path)) => path,
-            PathType::Text(None) => { return Ok(String::new()) },
+            PathType::Text(None) => return Ok(String::new()),
         };
 
-        match pathbuf.clone().file_stem().ok_or(anyhow!("Make sure {path} is UTF-8 compatible"))?.to_str() {
+        match pathbuf
+            .clone()
+            .file_stem()
+            .ok_or(anyhow!("Make sure {path} is UTF-8 compatible"))?
+            .to_str()
+        {
             Some(path_string) => Ok(path_string.to_string()),
             None => {
                 bail!("Make sure {path} is UTF-8 compatible.")
@@ -176,7 +181,11 @@ impl Config {
         Ok(input_mode)
     }
 
-    fn get_output_path(output: Option<PathBuf>, extract_mode: bool, input_mode: InputMode) -> Result<PathBuf> {
+    fn get_output_path(
+        output: Option<PathBuf>,
+        extract_mode: bool,
+        input_mode: InputMode,
+    ) -> Result<PathBuf> {
         let output: PathBuf = match output {
             Some(path) => {
                 if extract_mode {
@@ -231,7 +240,7 @@ impl Config {
                                     }
                                 }
                             }
-    
+
                             Path::new("./output").to_path_buf()
                         }
                         InputMode::Image => Path::new("./output.jpg").to_path_buf(),
@@ -243,7 +252,7 @@ impl Config {
         Ok(output)
     }
 
-    fn validate_model(model: &PathBuf) -> Result<bool> {
+    fn validate_model(model: &Path) -> Result<bool> {
         if let Some(extension) = model.extension() {
             ensure!(
                 (Some("onnx") == extension.to_str()),
@@ -256,7 +265,7 @@ impl Config {
         Ok(true)
     }
 
-    fn validate_text(text: &PathBuf) -> Result<bool> {
+    fn validate_text(text: &Path) -> Result<bool> {
         if let Some(extension) = text.extension() {
             ensure!(
                 (Some("json") == extension.to_str()),
@@ -274,8 +283,8 @@ impl Config {
 mod tests {
     use std::path::Path;
 
-    use crate::config::{InputMode, Config, PathType};
-    use tempfile::{TempDir, Builder};
+    use crate::config::{Config, InputMode, PathType};
+    use tempfile::{Builder, TempDir};
 
     // Testing "path_into_string" functionality
     #[test]
@@ -283,7 +292,9 @@ mod tests {
         let utf8_path = Path::new("temp.jpg");
 
         match Config::path_into_string(&PathType::Input(utf8_path.to_path_buf())) {
-            Ok(s) => { assert_eq!(&s, "temp") },
+            Ok(s) => {
+                assert_eq!(&s, "temp")
+            }
             Err(e) => {
                 panic!("Error: {e}")
             }
@@ -295,12 +306,18 @@ mod tests {
     fn test_input_mode() {
         let input_path = Path::new("./test.jpg");
 
-        assert_eq!(InputMode::Image, Config::get_input_mode(&input_path.to_path_buf()).unwrap());
+        assert_eq!(
+            InputMode::Image,
+            Config::get_input_mode(&input_path.to_path_buf()).unwrap()
+        );
 
         let input_dir = TempDir::new().unwrap();
 
-        assert_eq!(InputMode::Directory, Config::get_input_mode(&input_dir.path().to_path_buf()).unwrap())
-    }   
+        assert_eq!(
+            InputMode::Directory,
+            Config::get_input_mode(&input_dir.path().to_path_buf()).unwrap()
+        )
+    }
 
     // Same as above except testing for errors
     #[test]
@@ -309,13 +326,19 @@ mod tests {
 
         let error = Config::get_input_mode(&bad_input.to_path_buf()).unwrap_err();
 
-        assert_eq!(format!("{error}"), "Input must be either a directory or JPG.");
+        assert_eq!(
+            format!("{error}"),
+            "Input must be either a directory or JPG."
+        );
 
         let bad_dir_input = Builder::new().suffix("").tempfile().unwrap();
 
         let error = Config::get_input_mode(&bad_dir_input.path().to_path_buf()).unwrap_err();
 
-        assert_eq!(format!("{error}"), "Input must be either a directory or JPG.")
+        assert_eq!(
+            format!("{error}"),
+            "Input must be either a directory or JPG."
+        )
     }
 
     // Tests "get_output_path" when given an output path and not running in extract mode.
@@ -324,14 +347,21 @@ mod tests {
         // Test directory output validation
         let test_dir_path = TempDir::new().unwrap();
 
-        let dir_result = Config::get_output_path(Some(test_dir_path.path().to_path_buf()), false, InputMode::Directory).unwrap();
+        let dir_result = Config::get_output_path(
+            Some(test_dir_path.path().to_path_buf()),
+            false,
+            InputMode::Directory,
+        )
+        .unwrap();
 
         assert_eq!(dir_result, test_dir_path.path());
 
         // Test single image output validation
         let test_image = Path::new("./test.json");
 
-        let image_result = Config::get_output_path(Some(test_image.to_path_buf()), false, InputMode::Image).unwrap();
+        let image_result =
+            Config::get_output_path(Some(test_image.to_path_buf()), false, InputMode::Image)
+                .unwrap();
 
         assert_eq!(image_result, test_image.to_path_buf())
     }
@@ -342,16 +372,29 @@ mod tests {
         // Test directory output validation
         let test_dir_path = TempDir::new().unwrap();
 
-        let dir_err = Config::get_output_path(Some(test_dir_path.path().to_path_buf()), false, InputMode::Image).unwrap_err();
+        let dir_err = Config::get_output_path(
+            Some(test_dir_path.path().to_path_buf()),
+            false,
+            InputMode::Image,
+        )
+        .unwrap_err();
 
-        assert_eq!(format!("{dir_err}"), "Output and Input must be of the same type.");
+        assert_eq!(
+            format!("{dir_err}"),
+            "Output and Input must be of the same type."
+        );
 
         // Test single image output validation
         let test_image = Path::new("./test.json");
 
-        let image_error = Config::get_output_path(Some(test_image.to_path_buf()), false, InputMode::Directory).unwrap_err();
+        let image_error =
+            Config::get_output_path(Some(test_image.to_path_buf()), false, InputMode::Directory)
+                .unwrap_err();
 
-        assert_eq!(format!("{image_error}"), "Output and Input must be of the same type.");
+        assert_eq!(
+            format!("{image_error}"),
+            "Output and Input must be of the same type."
+        );
     }
 
     // Tests "get_output_path" when given an output path and running in extract mode
@@ -359,13 +402,20 @@ mod tests {
     fn test_output_extract_path() {
         let text_output_path = Path::new("./test.json");
 
-        let json_result = Config::get_output_path(Some(text_output_path.to_path_buf()), true, InputMode::Image).unwrap();
+        let json_result =
+            Config::get_output_path(Some(text_output_path.to_path_buf()), true, InputMode::Image)
+                .unwrap();
 
         assert_eq!(json_result, text_output_path.to_path_buf());
 
         let test_dir_path = TempDir::new().unwrap();
 
-        let dir_result = Config::get_output_path(Some(test_dir_path.path().to_path_buf()), false, InputMode::Directory).unwrap();
+        let dir_result = Config::get_output_path(
+            Some(test_dir_path.path().to_path_buf()),
+            false,
+            InputMode::Directory,
+        )
+        .unwrap();
 
         assert_eq!(dir_result, test_dir_path.path().to_path_buf());
     }
@@ -375,10 +425,17 @@ mod tests {
     fn test_output_extract_path_error() {
         let bad_dir_input = Builder::new().suffix("").tempfile().unwrap();
 
-        let extract_error = Config::get_output_path(Some(bad_dir_input.path().to_path_buf()), true, InputMode::Directory).unwrap_err();
+        let extract_error = Config::get_output_path(
+            Some(bad_dir_input.path().to_path_buf()),
+            true,
+            InputMode::Directory,
+        )
+        .unwrap_err();
 
-        assert_eq!(format!("{extract_error}"), "Output path must lead to a directory or json file for writing.")
-
+        assert_eq!(
+            format!("{extract_error}"),
+            "Output path must lead to a directory or json file for writing."
+        )
     }
 
     // Tests "get_output_path" when not given a path and running in extract mode
@@ -400,7 +457,7 @@ mod tests {
 
         assert_eq!(Path::new("./output.jpg"), default_image_path);
 
-        let default_dir_path = Config::get_output_path(None, false, InputMode::Directory).unwrap(); 
+        let default_dir_path = Config::get_output_path(None, false, InputMode::Directory).unwrap();
 
         assert_eq!(Path::new("./output"), default_dir_path)
     }
