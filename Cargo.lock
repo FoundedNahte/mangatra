@@ -962,7 +962,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mangtra"
+name = "mangatra"
 version = "0.1.0"
 dependencies = [
  "anyhow",

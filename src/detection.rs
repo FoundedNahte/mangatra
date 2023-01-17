@@ -35,7 +35,7 @@ impl Detector {
             false,
             cv::core::CV_32F,
         )?;
-
+        
         self.model
             .set_input(&result, "", 1.0, cv::core::Scalar::new(1.0, 1.0, 1.0, 1.0))?;
 
@@ -58,7 +58,7 @@ impl Detector {
 
         let boxes = detections.boxes;
 
-        let original_image: cv::core::Mat = imgcodecs::imread("img.jpg", imgcodecs::IMREAD_COLOR)?;
+        let original_image: cv::core::Mat = imgcodecs::imread(input_image, imgcodecs::IMREAD_COLOR)?;
         /*
             for i in 0..boxes.len() {
                 let classid = class_ids[i];
@@ -117,7 +117,7 @@ impl Detector {
         highgui::imshow("resized", &resized)?;
         highgui::wait_key(2000)?;
         highgui::destroy_all_windows()?;
-        */
+        */ 
         Ok(resized)
     }
 

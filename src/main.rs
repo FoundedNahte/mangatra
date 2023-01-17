@@ -28,10 +28,10 @@ pub struct Runtime {
 impl Runtime {
     pub fn new() -> Result<Runtime> {
         let config = Config::parse()?;
-
+        
         let detector = Detector::new(&config.model, config.padding)?;
 
-        let ocr = Ocr::new("C:/tools/tesseracct/tessdata")?;
+        let ocr = Ocr::new("C:/tools/tesseract/tessdata")?;
 
         Ok(Runtime {
             config,
@@ -45,14 +45,14 @@ impl Runtime {
             self.extract_mode()?;
         } else if self.config.replace_mode {
             self.replace_mode()?;
-        }
-
-        match self.config.input_mode {
-            InputMode::Directory => {
-                self.run_single_translation()?;
-            }
-            InputMode::Image => {
-                self.run_multi_translation()?;
+        } else {
+            match self.config.input_mode {
+                InputMode::Image => {
+                    self.run_single_translation()?;
+                }
+                InputMode::Directory => {
+                    self.run_multi_translation()?;
+                }
             }
         }
 
@@ -60,6 +60,8 @@ impl Runtime {
     }
 
     fn run_single_translation(&mut self) -> Result<()> {
+        
+
         let (text_regions, origins) = self.detector.run_inference(&self.config.input)?;
 
         let extracted_text = self.ocr.extract_text(&text_regions)?;
@@ -88,9 +90,7 @@ impl Runtime {
 
         let extracted_text = self.ocr.extract_text(&text_regions)?;
 
-        let translated_text = translate(extracted_text)?;
-
-        let data = json!({ "text": translated_text });
+        let data = json!({ "text": extracted_text });
 
         std::fs::write(&self.config.output, serde_json::to_string_pretty(&data)?)?;
 

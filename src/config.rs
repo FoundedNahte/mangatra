@@ -2,6 +2,7 @@ use anyhow::{anyhow, bail, ensure, Result};
 use clap::Parser;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug)]
 pub struct Config {
     pub extract_mode: bool,
     pub replace_mode: bool,
@@ -125,6 +126,8 @@ impl Config {
             padding = custom_padding;
         }
 
+        dbg!(Self::path_into_string(&PathType::Model(cli.model.clone()))?);
+
         Ok(Config {
             extract_mode: cli.extract_mode,
             replace_mode: cli.replace_mode,
@@ -149,11 +152,11 @@ impl Config {
 
         match pathbuf
             .clone()
-            .file_stem()
-            .ok_or(anyhow!("Make sure {path} is UTF-8 compatible"))?
-            .to_str()
+            .into_os_string()
+            .into_string()
+            .ok()
         {
-            Some(path_string) => Ok(path_string.to_string()),
+            Some(path_string) => Ok(path_string),
             None => {
                 bail!("Make sure {path} is UTF-8 compatible.")
             }
@@ -163,7 +166,7 @@ impl Config {
     fn get_input_mode(input: &PathBuf) -> Result<InputMode> {
         let input_mode = match input.extension() {
             Some(os_extension) => {
-                if let Some("jpg") = os_extension.to_str() {
+                if let Some("jpg" | "webp") = os_extension.to_str() {
                     InputMode::Image
                 } else {
                     bail!("Input must be either a directory or JPG.")
