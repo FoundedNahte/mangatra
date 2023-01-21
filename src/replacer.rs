@@ -1,7 +1,8 @@
+use crate::utils::image_conversion;
 use anyhow::Result;
 use image::{self, ImageBuffer, Rgb};
 use imageproc::drawing;
-use opencv::{self as cv, core, prelude::*};
+use opencv::{core, prelude::*};
 use rusttype::{Font, Scale};
 
 pub struct Replacer {
@@ -143,7 +144,7 @@ impl Replacer {
             let text = self.translated_text[i].clone();
 
             // Get blank, white canvas to draw translated text on
-            let mut canvas = Self::mat_to_image_buffer(region)?;
+            let mut canvas = image_conversion::mat_to_image_buffer(region)?;
 
             let (width, height) = canvas.dimensions();
 
@@ -178,7 +179,6 @@ impl Replacer {
                 y: height as f32 / 12.0,
             };
 
-
             if width < 55 {
                 scale.x = height as f32 / 8.0;
                 scale.y = height as f32 / 12.0;
@@ -193,7 +193,7 @@ impl Replacer {
             } else if num_words >= 15 {
                 scale.x = height as f32 / 18.0;
                 scale.y = height as f32 / 21.0;
-            } else if num_words >= 13 {           
+            } else if num_words >= 13 {
                 scale.x = height as f32 / 16.0;
                 scale.y = height as f32 / 19.0;
             } else if num_words >= 12 {
@@ -339,38 +339,9 @@ impl Replacer {
         let mut cv_vector: core::Vector<core::Mat> = core::Vector::new();
 
         for canvas in canvases {
-            cv_vector.push(Self::image_buffer_to_mat(canvas)?);
+            cv_vector.push(image_conversion::image_buffer_to_mat(canvas)?);
         }
 
         Ok(cv_vector)
-    }
-
-    // Convert to an ImageBuffer from the image crate to allow text writing in different fonts
-    pub fn mat_to_image_buffer(image: core::Mat) -> Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
-        let width: u32 = image.cols() as u32;
-        let height: u32 = image.rows() as u32;
-
-        let converted_image_buffer =
-            ImageBuffer::from_pixel(width, height, Rgb::from([255, 255, 255]));
-
-        Ok(converted_image_buffer)
-    }
-
-    fn image_buffer_to_mat(image: ImageBuffer<Rgb<u8>, Vec<u8>>) -> Result<core::Mat> {
-        let (width, height) = image.dimensions();
-        let cv_type = cv::core::CV_MAKETYPE(8, 3);
-
-        let mat = unsafe {
-            cv::core::Mat::new_rows_cols_with_data(
-                height as i32,
-                width as i32,
-                cv_type,
-                image.as_ptr() as *mut _,
-                cv::core::Mat_AUTO_STEP,
-            )?
-            .try_clone()?
-        };
-
-        Ok(mat)
     }
 }

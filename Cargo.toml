@@ -4,6 +4,13 @@ authors = ["Ethan Lau"]
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "src/main.rs"
+name = "Mangatra"
+
 [dependencies]
 opencv = "0.74.2"
 anyhow = "1.0.68"
@@ -17,6 +24,7 @@ imageproc = "0.23.0"
 rusttype = "0.9.3"
 clap = { version = "4.0.32", features = ["derive"] }
 rust-ini = "0.18.0"
+rayon = "1.6.1"
 
 [dev-dependencies]
 assert_cmd = "2.0.7"

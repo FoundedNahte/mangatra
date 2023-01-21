@@ -1,3 +1,4 @@
+use crate::utils::image_conversion;
 use anyhow::Result;
 use ndarray::{self as nd, Axis};
 use opencv::{self as cv, core::Rect2i, core::ToInputArray, dnn, imgcodecs, prelude::*};
@@ -35,7 +36,7 @@ impl Detector {
             false,
             cv::core::CV_32F,
         )?;
-        
+
         self.model
             .set_input(&result, "", 1.0, cv::core::Scalar::new(1.0, 1.0, 1.0, 1.0))?;
 
@@ -58,7 +59,8 @@ impl Detector {
 
         let boxes = detections.boxes;
 
-        let original_image: cv::core::Mat = imgcodecs::imread(input_image, imgcodecs::IMREAD_COLOR)?;
+        let original_image: cv::core::Mat =
+            imgcodecs::imread(input_image, imgcodecs::IMREAD_COLOR)?;
         /*
             for i in 0..boxes.len() {
                 let classid = class_ids[i];
@@ -92,7 +94,9 @@ impl Detector {
 
     // Helper function that pre-processes input image for the YoloV5 model
     fn format_image(input_image: &str) -> Result<cv::core::Mat> {
-        let image: cv::core::Mat = imgcodecs::imread(input_image, imgcodecs::IMREAD_COLOR)?;
+        let image = image::open(input_image)?;
+
+        let image = image_conversion::image_buffer_to_mat(image.to_rgb8())?;
 
         let cols: i32 = image.cols();
         let rows: i32 = image.rows();
@@ -117,7 +121,7 @@ impl Detector {
         highgui::imshow("resized", &resized)?;
         highgui::wait_key(2000)?;
         highgui::destroy_all_windows()?;
-        */ 
+        */
         Ok(resized)
     }
 

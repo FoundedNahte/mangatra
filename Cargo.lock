@@ -974,6 +974,7 @@ dependencies = [
  "ndarray",
  "once_cell",
  "opencv",
+ "rayon",
  "reqwest",
  "rust-ini",
  "rusttype",

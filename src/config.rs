@@ -1,4 +1,5 @@
-use anyhow::{anyhow, bail, ensure, Result};
+use crate::utils::validation;
+use anyhow::{bail, ensure, Result};
 use clap::Parser;
 use std::path::{Path, PathBuf};
 
@@ -107,14 +108,14 @@ impl Config {
         let output = Self::get_output_path(cli.output, cli.extract_mode, input_mode)?;
 
         // Make sure the model file is in the ONNX format
-        Self::validate_model(&cli.model)?;
+        validation::validate_model(&cli.model)?;
 
         // If in replace mode, make sure the text file is a JSON
         let mut text: Option<PathBuf> = None;
 
         if cli.replace_mode {
             if let Some(text_path) = cli.text {
-                Self::validate_text(&text_path)?;
+                validation::validate_text(&text_path)?;
 
                 text = Some(text_path);
             }
@@ -149,32 +150,35 @@ impl Config {
             PathType::Text(Some(path)) => path,
             PathType::Text(None) => return Ok(String::new()),
         };
+        match pathbuf.clone().to_str() {
+            Some(path_string) => Ok(path_string.to_string()),
+            None => {
+                bail!("Make sure {path} is UTF-8 comaptible.")
+            }
+        }
 
-        match pathbuf
-            .clone()
-            .into_os_string()
-            .into_string()
-            .ok()
-        {
+        /*
+        match pathbuf.clone().into_os_string().into_string().ok() {
             Some(path_string) => Ok(path_string),
             None => {
                 bail!("Make sure {path} is UTF-8 compatible.")
             }
         }
+        */
     }
 
-    fn get_input_mode(input: &PathBuf) -> Result<InputMode> {
+    fn get_input_mode(input: &Path) -> Result<InputMode> {
         let input_mode = match input.extension() {
-            Some(os_extension) => {
-                if let Some("jpg" | "webp") = os_extension.to_str() {
+            Some(_) => {
+                if validation::validate_image(input) {
                     InputMode::Image
                 } else {
-                    bail!("Input must be either a directory or JPG.")
+                    bail!("Input must be either a directory or supported image type.")
                 }
             }
             None => {
                 if !input.is_dir() {
-                    bail!("Input must be either a directory or JPG.");
+                    bail!("Input must be either a directory or supported image type.");
                 }
 
                 InputMode::Directory
@@ -254,32 +258,6 @@ impl Config {
 
         Ok(output)
     }
-
-    fn validate_model(model: &Path) -> Result<bool> {
-        if let Some(extension) = model.extension() {
-            ensure!(
-                (Some("onnx") == extension.to_str()),
-                "Model must be an ONNX file."
-            )
-        } else {
-            bail!("Model must be an ONNX file.")
-        }
-
-        Ok(true)
-    }
-
-    fn validate_text(text: &Path) -> Result<bool> {
-        if let Some(extension) = text.extension() {
-            ensure!(
-                (Some("json") == extension.to_str()),
-                "Text file must be a JSON file."
-            )
-        } else {
-            bail!("Text file must be a JSON file.")
-        }
-
-        Ok(true)
-    }
 }
 
 #[cfg(test)]
@@ -292,11 +270,11 @@ mod tests {
     // Testing "path_into_string" functionality
     #[test]
     fn test_path_into_string() {
-        let utf8_path = Path::new("temp.jpg");
+        let utf8_path = Path::new("./temp.jpg");
 
         match Config::path_into_string(&PathType::Input(utf8_path.to_path_buf())) {
             Ok(s) => {
-                assert_eq!(&s, "temp")
+                assert_eq!(&s, "./temp.jpg")
             }
             Err(e) => {
                 panic!("Error: {e}")
@@ -463,47 +441,5 @@ mod tests {
         let default_dir_path = Config::get_output_path(None, false, InputMode::Directory).unwrap();
 
         assert_eq!(Path::new("./output"), default_dir_path)
-    }
-
-    #[test]
-    fn test_model_validation() {
-        let good_model_path = Path::new("./model.onnx");
-
-        let bad_model_path = Path::new("./model.ONNX");
-
-        let test_dir_path = TempDir::new().unwrap();
-
-        let good_result = Config::validate_model(&good_model_path.to_path_buf()).unwrap();
-
-        let bad_err = Config::validate_model(&bad_model_path.to_path_buf()).unwrap_err();
-
-        let dir_err = Config::validate_model(&test_dir_path.path().to_path_buf()).unwrap_err();
-
-        assert_eq!(good_result, true);
-
-        assert_eq!(format!("{bad_err}"), "Model must be an ONNX file.");
-
-        assert_eq!(format!("{dir_err}"), "Model must be an ONNX file.");
-    }
-
-    #[test]
-    fn test_text_validation() {
-        let good_text_path = Path::new("./text.json");
-
-        let bad_text_path = Path::new("./text.txt");
-
-        let test_dir_path = TempDir::new().unwrap();
-
-        let good_result = Config::validate_text(&good_text_path.to_path_buf()).unwrap();
-
-        let bad_err = Config::validate_text(&bad_text_path.to_path_buf()).unwrap_err();
-
-        let dir_err = Config::validate_text(&test_dir_path.path().to_path_buf()).unwrap_err();
-
-        assert_eq!(good_result, true);
-
-        assert_eq!(format!("{bad_err}"), "Text file must be a JSON file.");
-
-        assert_eq!(format!("{dir_err}"), "Text file must be a JSON file.");
     }
 }
