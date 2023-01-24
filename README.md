@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://github.com/FoundedNahte/mangatra"><img src="assets/mangatra_logo.png" width="300" role="img"></a>
+<a href="https://github.com/FoundedNahte/mangatra"><img src="assets/mangatra_logo.png" role="img"></a>
 
 </div>
 
