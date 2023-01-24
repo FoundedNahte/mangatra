@@ -2,7 +2,7 @@ use anyhow::Result;
 use image::{self, ImageBuffer, Rgb};
 use opencv::{self as cv, core, prelude::*};
 
-// Convert to an ImageBuffer from the image crate to allow text writing in different fonts
+// Create a white rectangle in the same dimensions as the input Mat (Used for create writing canvas in replacement)
 pub fn mat_to_image_buffer(image: core::Mat) -> Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
     let width: u32 = image.cols() as u32;
     let height: u32 = image.rows() as u32;

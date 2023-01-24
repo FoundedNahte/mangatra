@@ -18,6 +18,7 @@ struct Json {
     pub text: Vec<String>,
 }
 
+// Runtime struct that holds configuration and other needed components for translation
 pub struct Runtime {
     config: Config,
     detector: Arc<Mutex<Detector>>,
