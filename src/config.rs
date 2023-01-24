@@ -13,23 +13,19 @@ pub struct Config {
     pub model: String,
     pub padding: u16,
     pub input_mode: InputMode,
+    pub single: bool,
 }
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    #[arg(long, help = "Pass '-e' or '--extract' to extract text from images.")]
+    pub extract: bool,
     #[arg(
-        short,
-        long,
-        help = "Pass '-e' or '--extract' to extract text from images."
-    )]
-    pub extract_mode: bool,
-    #[arg(
-        short,
         long,
         help = "Pass '-r' or '--replace' to replace text regions in input images from a JSON containing translated text"
     )]
-    pub replace_mode: bool,
+    pub replace: bool,
     #[arg(
         short,
         long,
@@ -56,6 +52,8 @@ struct Cli {
         help = "Specify size of padding for text regions (Tinkering may improve OCR)"
     )]
     pub padding: Option<u16>,
+    #[arg(long, help = "Use single-threading when processing a folder")]
+    pub single: bool,
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -88,14 +86,14 @@ impl Config {
 
         // If extract or replace mode is toggled, make sure only one of the two is toggled
         ensure!(
-            !(cli.extract_mode & cli.replace_mode),
+            !(cli.extract & cli.replace),
             "Run in either extract or replace mode but not both."
         );
 
         // Ensure that a text path is provided if running in replace mode
-        if cli.replace_mode {
+        if cli.replace {
             ensure!(
-                cli.replace_mode && cli.text.is_some(),
+                cli.replace && cli.text.is_some(),
                 "A path to a text json is required for replace mode."
             );
         }
@@ -105,7 +103,7 @@ impl Config {
 
         // If supplied an output path, check to see if it's the same type as the input
         // Otherwise use a default path based on whether running normally or in extract mode
-        let output = Self::get_output_path(cli.output, cli.extract_mode, input_mode)?;
+        let output = Self::get_output_path(cli.output, cli.extract, input_mode)?;
 
         // Make sure the model file is in the ONNX format
         validation::validate_model(&cli.model)?;
@@ -113,7 +111,7 @@ impl Config {
         // If in replace mode, make sure the text file is a JSON
         let mut text: Option<PathBuf> = None;
 
-        if cli.replace_mode {
+        if cli.replace {
             if let Some(text_path) = cli.text {
                 validation::validate_text(&text_path)?;
 
@@ -130,14 +128,15 @@ impl Config {
         dbg!(Self::path_into_string(&PathType::Model(cli.model.clone()))?);
 
         Ok(Config {
-            extract_mode: cli.extract_mode,
-            replace_mode: cli.replace_mode,
+            extract_mode: cli.extract,
+            replace_mode: cli.replace,
             text: Self::path_into_string(&PathType::Text(text))?,
             input: Self::path_into_string(&PathType::Input(cli.input))?,
             output: Self::path_into_string(&PathType::Output(output))?,
             model: Self::path_into_string(&PathType::Model(cli.model))?,
             padding,
             input_mode,
+            single: cli.single,
         })
     }
 
@@ -169,13 +168,12 @@ impl Config {
 
     fn get_input_mode(input: &Path) -> Result<InputMode> {
         let input_mode = match input.extension() {
-            Some(_) => {
-                if validation::validate_image(input) {
-                    InputMode::Image
-                } else {
-                    bail!("Input must be either a directory or supported image type.")
+            Some(_) => match validation::validate_image(input) {
+                Ok(()) => InputMode::Image,
+                Err(e) => {
+                    bail!("{e}");
                 }
-            }
+            },
             None => {
                 if !input.is_dir() {
                     bail!("Input must be either a directory or supported image type.");
@@ -285,18 +283,36 @@ mod tests {
     // Testing input_mode function for images and directories
     #[test]
     fn test_input_mode() {
-        let input_path = Path::new("./test.jpg");
+        let jpg_path = Path::new("./test.jpg");
+        let jpeg_path = Path::new("./test.jpeg");
+        let png_path = Path::new("./test.png");
+        let webp_path = Path::new("./test.webp");
 
         assert_eq!(
             InputMode::Image,
-            Config::get_input_mode(&input_path.to_path_buf()).unwrap()
+            Config::get_input_mode(jpg_path).unwrap()
+        );
+
+        assert_eq!(
+            InputMode::Image,
+            Config::get_input_mode(jpeg_path).unwrap()
+        );
+
+        assert_eq!(
+            InputMode::Image,
+            Config::get_input_mode(png_path).unwrap()
+        );
+
+        assert_eq!(
+            InputMode::Image,
+            Config::get_input_mode(webp_path).unwrap()
         );
 
         let input_dir = TempDir::new().unwrap();
 
         assert_eq!(
             InputMode::Directory,
-            Config::get_input_mode(&input_dir.path().to_path_buf()).unwrap()
+            Config::get_input_mode(input_dir.path()).unwrap()
         )
     }
 
@@ -305,20 +321,20 @@ mod tests {
     fn test_input_mode_error() {
         let bad_input = Path::new("./test.onnx");
 
-        let error = Config::get_input_mode(&bad_input.to_path_buf()).unwrap_err();
+        let error = Config::get_input_mode(bad_input).unwrap_err();
 
         assert_eq!(
             format!("{error}"),
-            "Input must be either a directory or JPG."
+            "Input must be either a directory or supported image type."
         );
 
         let bad_dir_input = Builder::new().suffix("").tempfile().unwrap();
 
-        let error = Config::get_input_mode(&bad_dir_input.path().to_path_buf()).unwrap_err();
+        let error = Config::get_input_mode(bad_dir_input.path()).unwrap_err();
 
         assert_eq!(
             format!("{error}"),
-            "Input must be either a directory or JPG."
+            "Input must be either a directory or supported image type."
         )
     }
 

@@ -27,19 +27,6 @@ impl Ocr {
             extracted_text.push(self.leptess.get_utf8_text()?);
         }
 
-        /*
-        let mut count: i32 = 0;
-
-        for bbox in text_boxes {
-            let encoded_data = Self::encode_in_tiff(&bbox, count)?;
-
-            self.leptess.set_image_from_mem(&encoded_data[..])?;
-
-            extracted_text.push(self.leptess.get_utf8_text()?);
-
-            count += 1;
-        }
-        */
         Ok(extracted_text)
     }
 

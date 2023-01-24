@@ -13,7 +13,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct Json {
     pub text: Vec<String>,
 }
@@ -56,25 +56,40 @@ impl Runtime {
             let final_image = Self::translate_image(
                 &self.config.input,
                 self.config.padding,
-                &mut self.ocr,
-                &mut self.detector,
+                &self.ocr,
+                &self.detector,
             )?;
 
             imgcodecs::imwrite(&self.config.output, &final_image, &core::Vector::new())?;
         } else {
-            let (input_images, output_paths) = self.walk_image_directory()?;
+            let (input_images, output_paths) = self.walk_image_directory(false)?;
 
-            let image_data: Vec<Result<core::Mat, Error>> = input_images
-                .par_iter()
-                .map(|input_path| {
-                    Self::translate_image(
-                        input_path,
-                        self.config.padding,
-                        &self.ocr,
-                        &self.detector,
-                    )
-                })
-                .collect();
+            // Multi-threading or single-threading based on configuration
+            let image_data: Vec<Result<core::Mat, Error>> = if self.config.single {
+                input_images
+                    .iter()
+                    .map(|input_path| {
+                        Self::translate_image(
+                            input_path,
+                            self.config.padding,
+                            &self.ocr,
+                            &self.detector,
+                        )
+                    })
+                    .collect()
+            } else {
+                input_images
+                    .par_iter()
+                    .map(|input_path| {
+                        Self::translate_image(
+                            input_path,
+                            self.config.padding,
+                            &self.ocr,
+                            &self.detector,
+                        )
+                    })
+                    .collect()
+            };
 
             for (final_image, output_path) in image_data.iter().zip(output_paths.iter()) {
                 match (final_image, output_path.to_str()) {
@@ -82,7 +97,7 @@ impl Runtime {
                     (Ok(data), Some(path)) => {
                         imgcodecs::imwrite(path, &data, &core::Vector::new())?;
                     }
-                    
+
                     // Catches errors in translating the image (OpenCV and libtesseract errors)
                     (Err(e), _) => eprintln!("{e}"),
 
@@ -101,17 +116,24 @@ impl Runtime {
     // Main function for extraction mode. Depending on input mode, will extract text from a single image or multiple.
     fn extract_mode(&mut self) -> Result<()> {
         if self.config.input_mode == InputMode::Image {
-            let data = Self::extract_text(&self.config.input, &mut self.ocr, &mut self.detector)?;
+            let data = Self::extract_text(&self.config.input, &self.ocr, &self.detector)?;
 
             std::fs::write(&self.config.output, serde_json::to_string_pretty(&data)?)?;
         } else {
-            let (input_images, output_paths) = self.walk_image_directory()?;
+            let (input_images, output_paths) = self.walk_image_directory(true)?;
 
-            // Parallel processing of images
-            let image_data: Vec<Result<Value, Error>> = input_images
-                .par_iter()
-                .map(|input_path| Self::extract_text(input_path, &self.ocr, &self.detector))
-                .collect();
+            // Single-threaded or multi-threaded extraction of text from images
+            let image_data: Vec<Result<Value, Error>> = if self.config.single {
+                input_images
+                    .iter()
+                    .map(|input_path| Self::extract_text(input_path, &self.ocr, &self.detector))
+                    .collect()
+            } else {
+                input_images
+                    .par_iter()
+                    .map(|input_path| Self::extract_text(input_path, &self.ocr, &self.detector))
+                    .collect()
+            };
 
             // Write text to output location
             for (data_result, output_path) in image_data.iter().zip(output_paths.iter()) {
@@ -130,43 +152,74 @@ impl Runtime {
     // Main function for replacement mode. Will replace a single image or multiple depending on input mode.
     fn replace_mode(&mut self) -> Result<()> {
         if self.config.input_mode == InputMode::Image {
-        } else {
-        }
-
-        /*
-        let data = std::fs::read_to_string(&self.config.text)?;
-
-        let data = serde_json::from_str::<Json>(&data)?;
-
-        let final_image = Self::replace_text(
-            &self.config.input,
-            data,
-            self.config.padding,
-            &mut self.detector,
-        )?;
-
-        imgcodecs::imwrite(&self.config.output, &final_image, &core::Vector::new())?;
-
-
-        if self.config.input_mode == InputMode::Image {
+            // Validation of single image paths is done during configuration
             let data = std::fs::read_to_string(&self.config.text)?;
 
             let data = serde_json::from_str::<Json>(&data)?;
 
             let final_image = Self::replace_text(
                 &self.config.input,
-                data,
+                &data,
                 self.config.padding,
-                &mut self.detector,
+                &self.detector,
             )?;
+
             imgcodecs::imwrite(&self.config.output, &final_image, &core::Vector::new())?;
         } else {
-            let mut input_images: Vec<String> = Vec::new();
-            let mut output_paths: Vec<PathBuf> = Vec::new();
+            let (input_images, output_paths) = self.walk_image_directory(false)?;
+
+            let text_data = self.walk_text_directory()?;
+
+            
+
+            let image_data: Vec<Result<core::Mat, Error>> = if self.config.single {
+                input_images
+                    .iter()
+                    .zip(text_data.iter())
+                    .map(|(input_path, data)| {
+                        Self::replace_text(
+                            input_path,
+                            data,
+                            self.config.padding,
+                            &self.detector,
+                        )
+                    })
+                    .collect()
+            } else {
+                input_images
+                    .par_iter()
+                    .zip(text_data.par_iter())
+                    .map(|(input_path, data)| {
+                        Self::replace_text(
+                            input_path,
+                            data,
+                            self.config.padding,
+                            &self.detector,
+                        )
+                    })
+                    .collect()
+            };
+
+            for (final_image, output_path) in image_data.iter().zip(output_paths.iter()) {
+                match (final_image, output_path.to_str()) {
+                    // Write to output path
+                    (Ok(data), Some(path)) => {
+                        imgcodecs::imwrite(path, &data, &core::Vector::new())?;
+                    }
+
+                    // Catches errors in translating the image (OpenCV and libtesseract errors)
+                    (Err(e), _) => eprintln!("{e}"),
+
+                    // Catches errors with path not being in UTF-8
+                    (_, None) => {
+                        let file_name = output_path.display();
+                        eprintln!("{file_name} must be UTF-8 compatible.");
+                    }
+                }
+            }
         }
+
         Ok(())
-        */
-        unimplemented!()
     }
 
     // Translation helper function used in both single and multi image translation functions.
@@ -236,7 +289,7 @@ impl Runtime {
     // Replacement helper function to replace text in single image and return a OpenCV Mat
     fn replace_text(
         input: &str,
-        data: Json,
+        data: &Json,
         padding: u16,
         detector: &Arc<Mutex<Detector>>,
     ) -> Result<core::Mat> {
@@ -250,7 +303,13 @@ impl Runtime {
 
         let original_image = imgcodecs::imread(input, imgcodecs::IMREAD_COLOR)?;
 
-        let replacer = Replacer::new(text_regions, data.text, origins, original_image, padding)?;
+        let replacer = Replacer::new(
+            text_regions,
+            data.text.clone(),
+            origins,
+            original_image,
+            padding,
+        )?;
 
         let final_image = replacer.replace_text_regions()?;
 
@@ -258,7 +317,7 @@ impl Runtime {
     }
 
     // Get images from input directory for processing
-    fn walk_image_directory(&self) -> Result<(Vec<String>, Vec<PathBuf>)> {
+    fn walk_image_directory(&self, extract_mode: bool) -> Result<(Vec<String>, Vec<PathBuf>)> {
         let mut input_images: Vec<String> = Vec::new();
         let mut output_paths: Vec<PathBuf> = Vec::new();
 
@@ -268,27 +327,47 @@ impl Runtime {
                 Ok(dir_entry) => {
                     let dir_entry_path = dir_entry.path();
 
-                    if validation::validate_image(&dir_entry.path()) {
-                        match dir_entry_path.to_str() {
-                            Some(path_string) => match dir_entry_path.file_stem() {
-                                Some(file_stem) => {
-                                    let mut output_path = PathBuf::new();
-                                    output_path.push(&self.config.output);
-                                    output_path.push(file_stem);
-                                    output_path.set_extension("json");
+                    match validation::validate_image(&dir_entry.path()) {
+                        Ok(()) => {
+                            match dir_entry_path.to_str() {
+                                Some(path_string) => match dir_entry_path.file_stem() {
+                                    Some(file_stem) if file_stem.to_str().is_some() => {
+                                        // Pattern guard ensures that to_str gives "Some"
+                                        let file_stem = file_stem.to_str().unwrap();
 
-                                    input_images.push(path_string.to_string());
-                                    output_paths.push(output_path);
-                                }
+                                        // Create the output path for each text_file
+                                        let mut output_path = PathBuf::new();
+
+                                        if extract_mode {
+                                            output_path.push(&self.config.output);
+                                            output_path.push(file_stem);
+                                            output_path.set_extension("json");
+                                        } else {
+                                            let output_filename = format!("{file_stem}_output");
+
+                                            output_path.push(&self.config.output);
+                                            output_path.push(output_filename);
+                                            output_path.set_extension("jpg");
+                                        }
+
+                                        input_images.push(path_string.to_string());
+                                        output_paths.push(output_path);
+                                    }
+                                    _ => {
+                                        let bad_path = dir_entry_path.display();
+                                        eprintln!(
+                                            "{bad_path} needs to have a UTF-8 compatible name."
+                                        );
+                                    }
+                                },
                                 None => {
                                     let bad_path = dir_entry_path.display();
                                     eprintln!("{bad_path} needs to have a UTF-8 compatible name.");
                                 }
-                            },
-                            None => {
-                                let bad_path = dir_entry_path.display();
-                                eprintln!("{bad_path} needs to have a UTF-8 compatible name.");
                             }
+                        }
+                        Err(e) => {
+                            eprintln!("{e}");
                         }
                     }
                 }
@@ -302,8 +381,40 @@ impl Runtime {
     }
 
     // Get text data from text directory for replacement
-    fn walk_text_directory(&self) -> Result<()> {
-        unimplemented!()
+    fn walk_text_directory(&self) -> Result<Vec<Json>> {
+        let mut text_data: Vec<Json> = Vec::new();
+
+        for result in fs::read_dir(&self.config.text)? {
+            match result {
+                Ok(dir_entry) => {
+                    let dir_entry_path = dir_entry.path();
+
+                    match validation::validate_text(&dir_entry.path()) {
+                        Ok(()) => match dir_entry_path.to_str() {
+                            Some(path_string) => {
+                                let data = std::fs::read_to_string(path_string)?;
+
+                                let data = serde_json::from_str::<Json>(&data)?;
+
+                                text_data.push(data);
+                            }
+                            None => {
+                                let bad_path = dir_entry_path.display();
+                                eprintln!("{bad_path} needs to have a UTF-8 compatible name.");
+                            }
+                        },
+                        Err(e) => {
+                            eprintln!("{e}");
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{e}");
+                }
+            }
+        }
+
+        Ok(text_data)
     }
 }
 

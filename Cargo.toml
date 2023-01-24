@@ -9,7 +9,7 @@ path = "src/lib.rs"
 
 [[bin]]
 path = "src/main.rs"
-name = "Mangatra"
+name = "mangatra"
 
 [dependencies]
 opencv = "0.74.2"

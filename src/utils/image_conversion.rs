@@ -1,7 +1,6 @@
 use anyhow::Result;
 use image::{self, ImageBuffer, Rgb};
 use opencv::{self as cv, core, prelude::*};
-use std::path::Path;
 
 // Convert to an ImageBuffer from the image crate to allow text writing in different fonts
 pub fn mat_to_image_buffer(image: core::Mat) -> Result<ImageBuffer<Rgb<u8>, Vec<u8>>> {
