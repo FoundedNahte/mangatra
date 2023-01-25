@@ -183,28 +183,33 @@ impl Replacer {
                 scale.x = height as f32 / 8.0;
                 scale.y = height as f32 / 12.0;
             } else if width < 100 {
-                scale.x = height as f32 / 8.0;
-                scale.y = height as f32 / 10.0;
+                scale.x = height as f32 / 10.0;
+                scale.y = height as f32 / 14.0;
             }
-
+            /*
             if num_words >= 17 {
                 scale.x = height as f32 / 20.0;
                 scale.y = height as f32 / 23.0;
-            } else if num_words >= 15 {
+            } 
+            */
+            /*
+            if num_words >= 15 {
                 scale.x = height as f32 / 18.0;
                 scale.y = height as f32 / 21.0;
-            } else if num_words >= 13 {
-                scale.x = height as f32 / 16.0;
-                scale.y = height as f32 / 19.0;
-            } else if num_words >= 12 {
+            } else 
+            */
+            if num_words >= 16 {
                 scale.x = height as f32 / 14.0;
-                scale.y = height as f32 / 17.0;
-            } else if num_words >= 11 {
+                scale.y = height as f32 / 16.0;
+            } else if num_words >= 14 {
                 scale.x = height as f32 / 12.0;
-                scale.y = height as f32 / 15.0;
-            } else if num_words >= 10 {
+                scale.y = height as f32 / 14.0;
+            } else if num_words >= 12 {
                 scale.x = height as f32 / 10.0;
-                scale.y = height as f32 / 13.0;
+                scale.y = height as f32 / 12.0;
+            } else if num_words >= 10 {
+                scale.x = height as f32 / 8.0;
+                scale.y = height as f32 / 10.0;
             } else if num_words <= 2 {
                 scale.x = height as f32 / 7.0;
                 scale.y = height as f32 / 9.0;

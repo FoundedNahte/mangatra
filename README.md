@@ -21,7 +21,7 @@ It uses YOLOv5 to identify text boxes, OpenCV for image manipuation, and libtess
 ## Installation
 
 ## Roadmap
-- [] Configuration Files
-- [] Better Replacement
-- [] Modular Translation with Python scripts
-- [] GUI
+- [ ] Configuration Files
+- [ ] Better Replacement
+- [ ] Modular Translation with Python scripts
+- [ ] GUI
