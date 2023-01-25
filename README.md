@@ -15,11 +15,9 @@ It can function as a tool for translators as well as an end-to-end solution for 
 It uses YOLOv5 to identify text boxes, OpenCV for image manipuation, and libtesseract for OCR capabilities. Because of the use of YOLOv5 for text box detection, the application can also be generalized to other forms of text besides manga.
 
 ## Demo
-<div align="center>
-
-<a><img src="assets/sample.png" role="img"></a>
-
-</div>
+| Input             |  Output |
+:-------------------------:|:-------------------------:
+![](https://github.com/FoundedNahte/mangatra/blob/master/assets/input.png)  |  ![](https://github.com/FoundedNahte/mangatra/blob/master/assets/output.png)
 
 ## Usage
 ```
