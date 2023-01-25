@@ -190,13 +190,13 @@ impl Replacer {
             if num_words >= 17 {
                 scale.x = height as f32 / 20.0;
                 scale.y = height as f32 / 23.0;
-            } 
+            }
             */
             /*
             if num_words >= 15 {
                 scale.x = height as f32 / 18.0;
                 scale.y = height as f32 / 21.0;
-            } else 
+            } else
             */
             if num_words >= 16 {
                 scale.x = height as f32 / 14.0;

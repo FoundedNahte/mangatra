@@ -288,25 +288,13 @@ mod tests {
         let png_path = Path::new("./test.png");
         let webp_path = Path::new("./test.webp");
 
-        assert_eq!(
-            InputMode::Image,
-            Config::get_input_mode(jpg_path).unwrap()
-        );
+        assert_eq!(InputMode::Image, Config::get_input_mode(jpg_path).unwrap());
 
-        assert_eq!(
-            InputMode::Image,
-            Config::get_input_mode(jpeg_path).unwrap()
-        );
+        assert_eq!(InputMode::Image, Config::get_input_mode(jpeg_path).unwrap());
 
-        assert_eq!(
-            InputMode::Image,
-            Config::get_input_mode(png_path).unwrap()
-        );
+        assert_eq!(InputMode::Image, Config::get_input_mode(png_path).unwrap());
 
-        assert_eq!(
-            InputMode::Image,
-            Config::get_input_mode(webp_path).unwrap()
-        );
+        assert_eq!(InputMode::Image, Config::get_input_mode(webp_path).unwrap());
 
         let input_dir = TempDir::new().unwrap();
 

@@ -24,7 +24,10 @@ impl Ocr {
 
             self.leptess.set_image_from_mem(&encoded_data[..])?;
 
-            extracted_text.push(self.leptess.get_utf8_text()?);
+            let mut text = self.leptess.get_utf8_text()?;
+            text = text.replace('\n', "");
+
+            extracted_text.push(text);
         }
 
         Ok(extracted_text)

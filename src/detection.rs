@@ -1,7 +1,7 @@
 use crate::utils::image_conversion;
 use anyhow::Result;
 use ndarray::{self as nd, Axis};
-use opencv::{self as cv, core::Rect2i, core::ToInputArray, dnn, imgcodecs, prelude::*};
+use opencv::{self as cv, core::Rect2i, core::ToInputArray, dnn, prelude::*};
 use std::cmp::max;
 
 type Origin = (i32, i32);
@@ -59,8 +59,8 @@ impl Detector {
 
         let boxes = detections.boxes;
 
-        let original_image: cv::core::Mat =
-            imgcodecs::imread(input_image, imgcodecs::IMREAD_COLOR)?;
+        let original_image = image::open(input_image)?;
+        let original_image = image_conversion::image_buffer_to_mat(original_image.to_rgb8())?;
         /*
             for i in 0..boxes.len() {
                 let classid = class_ids[i];
@@ -130,7 +130,6 @@ impl Detector {
         image: cv::core::Mat,
         output_data: nd::ArrayView2<f32>,
     ) -> Result<Detections> {
-        let mut class_ids: Vec<i32> = Vec::new();
         let mut confidences: Vec<f32> = Vec::new();
         let mut boxes: cv::core::Vector<Rect2i> = cv::core::Vector::new();
 
@@ -163,8 +162,6 @@ impl Detector {
                 if classes_scores[class_id as usize] > 0.25 {
                     confidences.push(confidence);
 
-                    class_ids.push(class_id);
-
                     let x: f32 = row[[0]];
                     let y: f32 = row[[1]];
                     let w: f32 = row[[2]];
@@ -192,13 +189,9 @@ impl Detector {
             0,
         )?;
 
-        let mut result_class_ids: Vec<i32> = Vec::new();
-        let mut result_confidences: Vec<f32> = Vec::new();
         let mut result_boxes: cv::core::Vector<Rect2i> = cv::core::Vector::new();
 
         for i in indices {
-            result_confidences.push(confidences[i as usize]);
-            result_class_ids.push(class_ids[i as usize]);
             result_boxes.push(boxes.get(i as usize)?);
         }
 

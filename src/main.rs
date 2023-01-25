@@ -4,7 +4,7 @@ use mangatra::detection::Detector;
 use mangatra::ocr::Ocr;
 use mangatra::replacer::Replacer;
 use mangatra::translation::translate;
-use mangatra::utils::validation;
+use mangatra::utils::{image_conversion, validation};
 use opencv::{core, imgcodecs};
 use rayon::prelude::*;
 use serde::Deserialize;
@@ -171,19 +171,12 @@ impl Runtime {
 
             let text_data = self.walk_text_directory()?;
 
-            
-
             let image_data: Vec<Result<core::Mat, Error>> = if self.config.single {
                 input_images
                     .iter()
                     .zip(text_data.iter())
                     .map(|(input_path, data)| {
-                        Self::replace_text(
-                            input_path,
-                            data,
-                            self.config.padding,
-                            &self.detector,
-                        )
+                        Self::replace_text(input_path, data, self.config.padding, &self.detector)
                     })
                     .collect()
             } else {
@@ -191,12 +184,7 @@ impl Runtime {
                     .par_iter()
                     .zip(text_data.par_iter())
                     .map(|(input_path, data)| {
-                        Self::replace_text(
-                            input_path,
-                            data,
-                            self.config.padding,
-                            &self.detector,
-                        )
+                        Self::replace_text(input_path, data, self.config.padding, &self.detector)
                     })
                     .collect()
             };
@@ -247,7 +235,8 @@ impl Runtime {
 
         let translated_text = translate(extracted_text)?;
 
-        let original_image = imgcodecs::imread(input, imgcodecs::IMREAD_COLOR)?;
+        let original_image = image::open(input)?;
+        let original_image = image_conversion::image_buffer_to_mat(original_image.to_rgb8())?;
 
         let replacer = Replacer::new(
             text_regions,
@@ -302,7 +291,8 @@ impl Runtime {
             (text_regions, origins) = detector.run_inference(input)?;
         }
 
-        let original_image = imgcodecs::imread(input, imgcodecs::IMREAD_COLOR)?;
+        let original_image = image::open(input)?;
+        let original_image = image_conversion::image_buffer_to_mat(original_image.to_rgb8())?;
 
         let replacer = Replacer::new(
             text_regions,
@@ -348,7 +338,7 @@ impl Runtime {
 
                                             output_path.push(&self.config.output);
                                             output_path.push(output_filename);
-                                            output_path.set_extension("jpg");
+                                            output_path.set_extension("png");
                                         }
 
                                         input_images.push(path_string.to_string());
