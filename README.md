@@ -17,7 +17,7 @@ It uses YOLOv5 to identify text boxes, OpenCV for image manipuation, and libtess
 ## Demo
 <div align="center>
 
-<a ><img src="assets/sample.png" role="img"></a>
+<img src="assets/sample.png" role="img">
 
 </div>
 
