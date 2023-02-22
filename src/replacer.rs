@@ -144,7 +144,7 @@ impl Replacer {
             let text = self.translated_text[i].clone();
 
             // Get blank, white canvas to draw translated text on
-            let mut canvas = image_conversion::mat_to_image_buffer(region)?;
+            let mut canvas = image_conversion::get_blank_buffer(&region)?;
 
             let (width, height) = canvas.dimensions();
 
