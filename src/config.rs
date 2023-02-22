@@ -304,7 +304,7 @@ mod tests {
 
         assert_eq!(
             format!("{error}"),
-            "Input must be either a directory or supported image type."
+            "Image file must be in one of the specified formats: JPG, PNG, WebP."
         );
 
         let bad_dir_input = Builder::new().suffix("").tempfile().unwrap();
