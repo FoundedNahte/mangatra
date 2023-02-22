@@ -5,7 +5,7 @@ use mangatra::ocr::Ocr;
 use mangatra::replacer::Replacer;
 use mangatra::translation::translate;
 use mangatra::utils::{image_conversion, validation};
-use opencv::{core, imgcodecs};
+use opencv::core;
 use rayon::prelude::*;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -61,7 +61,7 @@ impl Runtime {
                 &self.detector,
             )?;
 
-            imgcodecs::imwrite(&self.config.output, &final_image, &core::Vector::new())?;
+            image_conversion::mat_to_image_buffer(&final_image)?.save(&self.config.output)?;
         } else {
             let (input_images, output_paths) = self.walk_image_directory(false)?;
 
@@ -96,7 +96,7 @@ impl Runtime {
                 match (final_image, output_path.to_str()) {
                     // Write to output path
                     (Ok(data), Some(path)) => {
-                        imgcodecs::imwrite(path, &data, &core::Vector::new())?;
+                        image_conversion::mat_to_image_buffer(data)?.save(path)?;
                     }
 
                     // Catches errors in translating the image (OpenCV and libtesseract errors)
@@ -165,7 +165,7 @@ impl Runtime {
                 &self.detector,
             )?;
 
-            imgcodecs::imwrite(&self.config.output, &final_image, &core::Vector::new())?;
+            image_conversion::mat_to_image_buffer(&final_image)?.save(&self.config.output)?;
         } else {
             let (input_images, output_paths) = self.walk_image_directory(false)?;
 
@@ -193,7 +193,7 @@ impl Runtime {
                 match (final_image, output_path.to_str()) {
                     // Write to output path
                     (Ok(data), Some(path)) => {
-                        imgcodecs::imwrite(path, &data, &core::Vector::new())?;
+                        image_conversion::mat_to_image_buffer(data)?.save(path)?;
                     }
 
                     // Catches errors in translating the image (OpenCV and libtesseract errors)
