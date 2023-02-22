@@ -5,6 +5,10 @@ use imageproc::drawing;
 use opencv::{core, prelude::*};
 use rusttype::{Font, Scale};
 
+type Coordinates = (i32, i32);
+type Width = i32;
+type Height = i32;
+
 pub struct Replacer {
     text_regions: core::Vector<core::Mat>,
     translated_text: Vec<String>,
@@ -39,28 +43,21 @@ impl Replacer {
         let mut temp_image = core::Mat::copy(&self.original_image)?;
 
         for i in 0..text_regions.len() {
-            let (text_region_x, text_region_y) = self.origins[i];
+            let (x, y) = self.origins[i];
             let text_region = text_regions.get(i)?;
 
-            let text_region_width = text_region.cols();
-            let text_region_height = text_region.rows();
+            let width = text_region.cols();
+            let height = text_region.rows();
 
             let (left_panel_x, left_panel_y) = (0, 0);
-            let (top_panel_x, top_panel_y) = (text_region_x, 0);
-            let (bottom_panel_x, bottom_panel_y) =
-                (text_region_x, text_region_y + text_region_height);
-            let (right_panel_x, right_panel_y) = (text_region_x + text_region_width, 0);
+            let (top_panel_x, top_panel_y) = (x, 0);
+            let (bottom_panel_x, bottom_panel_y) = (x, y + height);
+            let (right_panel_x, right_panel_y) = (x + width, 0);
 
-            let (left_panel_width, left_panel_height) = (text_region_x, full_height);
-            let (top_panel_width, top_panel_height) = (text_region_width, text_region_y);
-            let (bottom_panel_width, bottom_panel_height) = (
-                text_region_width,
-                full_height - (text_region_y + text_region_height),
-            );
-            let (right_panel_width, right_panel_height) = (
-                full_width - (text_region_x + text_region_width),
-                full_height,
-            );
+            let (left_panel_width, left_panel_height) = (x, full_height);
+            let (top_panel_width, top_panel_height) = (width, y);
+            let (bottom_panel_width, bottom_panel_height) = (width, full_height - (y + height));
+            let (right_panel_width, right_panel_height) = (full_width - (x + width), full_height);
 
             let left_panel = core::Mat::roi(
                 &temp_image,
@@ -131,6 +128,83 @@ impl Replacer {
         Ok(temp_image)
     }
 
+    // Expand text region to fit text bubble
+    // Returns new (x, y) coordinates and width/height
+    fn expand_text_region(
+        &self,
+        (tl_x, tl_y): Coordinates,
+        old_width: Width,
+        old_height: Height,
+        original: &core::Mat,
+    ) -> Result<(Coordinates, Width, Height)> {
+        let (mut tl_x, mut tl_y) = (tl_x as u32, tl_y as u32);
+        let old_width = old_width as u32;
+        let old_height = old_height as u32;
+
+        let image_buffer = image_conversion::mat_to_image_buffer(original)?;
+        let (mut tr_x, mut tr_y) = (tl_x + old_width, tl_y);
+        let (mut bl_x, mut bl_y) = (tl_x, tl_y + old_height);
+        let (mut br_x, mut br_y) = (bl_x + old_width, bl_y);
+
+        let mut tl_length = 0;
+        let mut tr_length = 0;
+        let mut bl_length = 0;
+        let mut br_length = 0;
+
+        // Expand the top left corner
+        let ori_pixel = image_buffer.get_pixel(tl_x, tl_y);
+        while image_buffer.get_pixel(tl_x - 1, tl_y + 1) == ori_pixel {
+            tl_x -= 1;
+            tl_y -= 1;
+            tl_length += 1;
+        }
+
+        // Expand the top right corner
+        let ori_pixel = image_buffer.get_pixel(tr_x, tr_y);
+        while image_buffer.get_pixel(tr_x + 1, tr_y + 1) == ori_pixel {
+            tr_x += 1;
+            tr_y -= 1;
+            tr_length += 1;
+        }
+
+        // Expand the bottom left corner
+        let ori_pixel = image_buffer.get_pixel(bl_x, bl_y);
+        while image_buffer.get_pixel(bl_x - 1, bl_y - 1) == ori_pixel {
+            bl_x -= 1;
+            bl_y += 1;
+            bl_length += 1;
+        }
+
+        // Expand the bottom right corner
+        let ori_pixel = image_buffer.get_pixel(br_x, br_y);
+        while image_buffer.get_pixel(br_x + 1, br_y - 1) == ori_pixel {
+            br_x += 1;
+            br_y += 1;
+            br_length += 1;
+        }
+
+        let new_width;
+        let new_height;
+
+        // Determine which pair of opposite corners is smaller
+        if (tl_length + br_length) < (bl_length + tr_length) {
+            new_width = br_x - tl_x;
+            new_height = br_y - tl_y;
+        } else {
+            new_width = tr_x - bl_x;
+            new_height = bl_y - tr_y;
+
+            tl_x = tr_x - new_width;
+            tl_y = tr_y;
+        }
+
+        Ok((
+            (tl_x as i32, tl_y as i32),
+            new_width as i32,
+            new_height as i32,
+        ))
+    }
+
     // Write replace japanese text with english text
     fn write_text(&self) -> Result<core::Vector<core::Mat>> {
         let mut canvases: Vec<ImageBuffer<Rgb<u8>, Vec<u8>>> = Vec::new();
@@ -140,21 +214,29 @@ impl Replacer {
             onto a blank, white canvas.
         */
         for i in 0..self.translated_text.len() {
+            let (x, y) = self.origins[i];
             let region = self.text_regions.get(i)?;
             let text = self.translated_text[i].clone();
 
+            let width = region.cols();
+            let height = region.rows();
+
+            let ((x, y), width, height) =
+                self.expand_text_region((x, y), width, height, &self.original_image)?;
+
+            let region =
+                core::Mat::roi(&self.original_image, core::Rect2i::new(x, y, width, height))?;
+
             // Get blank, white canvas to draw translated text on
             let mut canvas = image_conversion::get_blank_buffer(&region)?;
-
             let (width, height) = canvas.dimensions();
-
             let height = height as i32;
 
             let start_x = width / 16;
             let mut start_y = height / 20;
-
             let stop_x = width - (width / 16);
 
+            // Load manga font from assets
             let font = Vec::from(include_bytes!("../assets/mangat.ttf") as &[u8]);
             let font = Font::try_from_vec(font).expect("Could not unwrap Font.");
 
