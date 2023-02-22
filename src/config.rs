@@ -82,6 +82,10 @@ impl std::fmt::Display for PathType {
 
 impl Config {
     pub fn parse() -> Result<Config> {
+        // Default values for text and padding
+        let mut text: Option<PathBuf> = None;
+        let mut padding: u16 = 10;
+
         let cli = Cli::parse();
 
         // If extract or replace mode is toggled, make sure only one of the two is toggled
@@ -109,8 +113,6 @@ impl Config {
         validation::validate_model(&cli.model)?;
 
         // If in replace mode, make sure the text file is a JSON
-        let mut text: Option<PathBuf> = None;
-
         if cli.replace {
             if let Some(text_path) = cli.text {
                 validation::validate_text(&text_path)?;
@@ -119,13 +121,9 @@ impl Config {
             }
         }
 
-        let mut padding: u16 = 10;
-
         if let Some(custom_padding) = cli.padding {
             padding = custom_padding;
         }
-
-        dbg!(Self::path_into_string(&PathType::Model(cli.model.clone()))?);
 
         Ok(Config {
             extract_mode: cli.extract,
@@ -155,17 +153,9 @@ impl Config {
                 bail!("Make sure {path} is UTF-8 comaptible.")
             }
         }
-
-        /*
-        match pathbuf.clone().into_os_string().into_string().ok() {
-            Some(path_string) => Ok(path_string),
-            None => {
-                bail!("Make sure {path} is UTF-8 compatible.")
-            }
-        }
-        */
     }
 
+    // Parses input mode from the input path
     fn get_input_mode(input: &Path) -> Result<InputMode> {
         let input_mode = match input.extension() {
             Some(_) => match validation::validate_image(input) {
@@ -186,6 +176,7 @@ impl Config {
         Ok(input_mode)
     }
 
+    // Parses output path based on the parameters given
     fn get_output_path(
         output: Option<PathBuf>,
         extract_mode: bool,
