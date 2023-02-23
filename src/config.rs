@@ -50,7 +50,7 @@ struct Cli {
     #[arg(
         short,
         long,
-        help = "Libtesseract Data Path - Specify path to libtesseract data folder."
+        help = "Libtesseract Data Path - Specify path to libtesseract data folder. If no path is specified, the application will look under the 'TESSDATA_PREFIX' environment variable."
     )]
     pub data: Option<PathBuf>,
     #[arg(

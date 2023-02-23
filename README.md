@@ -24,12 +24,13 @@ It uses YOLOv5 to identify text boxes, OpenCV for image manipuation, and libtess
 Usage: mangatra.exe [OPTIONS] --input <INPUT> --model <MODEL>
 
 Options:
-      --extract            Pass '-e' or '--extract' to extract text from images.
-      --replace            Pass '-r' or '--replace' to replace text regions in input images from a JSON containing translated text
+      --extract            Pass '--extract' to extract text from images.
+      --replace            Pass '--replace' to replace text regions in input images from a JSON containing translated text
   -t, --text <TEXT>        If using in "replace" mode, a path to a translated text json must be specified
   -i, --input <INPUT>      Input Path - Directory of JPGs or a single JPG
   -o, --output <OUTPUT>    Optional Output Path - Specify output location for text or image outputs. If not specified, application will revert to the current directory.
-  -m, --model <MODEL>      Model Path - A path to a detection model must be specified (ONNX format).
+  -m, --model <MODEL>      YoloV5 Model Path - A path to a detection model must be specified (ONNX format).
+  -d, --data <DATA>        Libtesseract Data Path - Specify path to libtesseract data folder. If no path is specified, the application will look under the 'TESSDATA_PREFIX' environment variable.
   -p, --padding <PADDING>  Specify size of padding for text regions (Tinkering may improve OCR)
       --single             Use single-threading when processing a folder
   -h, --help               Print help information

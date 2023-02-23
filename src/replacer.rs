@@ -302,7 +302,7 @@ impl Replacer {
 
             let mut curr_line = String::new();
 
-            let (width_of_space, text_height) = drawing::text_size(scale, &font, " ");
+            let width_of_space = drawing::text_size(scale, &font, " ").0;
 
             for word in split_text {
                 let (text_width, _) = drawing::text_size(scale, &font, word);
@@ -408,6 +408,7 @@ impl Replacer {
                 }
             }
 
+            // Center the text
             let num_lines = lines.len() as i32;
             let first_line_height = drawing::text_size(scale, &font, &lines[0]).1;
             let mut start_y = (height - (num_lines * first_line_height)) / 2;
