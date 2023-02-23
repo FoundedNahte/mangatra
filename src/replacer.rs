@@ -10,7 +10,7 @@ type Width = i32;
 type Height = i32;
 
 pub struct Replacer {
-    text_regions: core::Vector<core::Mat>,
+    original_text_regions: core::Vector<core::Mat>,
     translated_text: Vec<String>,
     origins: Vec<(i32, i32)>,
     original_image: core::Mat,
@@ -19,14 +19,14 @@ pub struct Replacer {
 
 impl Replacer {
     pub fn new(
-        text_regions: core::Vector<core::Mat>,
+        original_text_regions: core::Vector<core::Mat>,
         translated_text: Vec<String>,
         origins: Vec<(i32, i32)>,
         original_image: core::Mat,
         padding: u16,
     ) -> Result<Replacer> {
         Ok(Replacer {
-            text_regions,
+            original_text_regions,
             translated_text,
             origins,
             original_image,
@@ -35,25 +35,27 @@ impl Replacer {
     }
 
     pub fn replace_text_regions(&self) -> Result<core::Mat> {
-        let text_regions = self.write_text()?;
+        let (new_text_regions, new_origins) = self.write_text()?;
 
         let full_width = self.original_image.cols();
         let full_height = self.original_image.rows();
 
         let mut temp_image = core::Mat::copy(&self.original_image)?;
 
-        for i in 0..text_regions.len() {
-            let (x, y) = self.origins[i];
-            let text_region = text_regions.get(i)?;
+        for (i, (x, y)) in new_origins.iter().enumerate().take(new_text_regions.len()) {
+            let (x, y) = (*x, *y);
+            let text_region = new_text_regions.get(i)?;
 
             let width = text_region.cols();
             let height = text_region.rows();
 
+            // Establish origins for the four panels
             let (left_panel_x, left_panel_y) = (0, 0);
             let (top_panel_x, top_panel_y) = (x, 0);
             let (bottom_panel_x, bottom_panel_y) = (x, y + height);
             let (right_panel_x, right_panel_y) = (x + width, 0);
 
+            // Establish dimensions for the four panels
             let (left_panel_width, left_panel_height) = (x, full_height);
             let (top_panel_width, top_panel_height) = (width, y);
             let (bottom_panel_width, bottom_panel_height) = (width, full_height - (y + height));
@@ -206,8 +208,9 @@ impl Replacer {
     }
 
     // Write replace japanese text with english text
-    fn write_text(&self) -> Result<core::Vector<core::Mat>> {
+    fn write_text(&self) -> Result<(core::Vector<core::Mat>, Vec<Coordinates>)> {
         let mut canvases: Vec<ImageBuffer<Rgb<u8>, Vec<u8>>> = Vec::new();
+        let mut new_origins: Vec<Coordinates> = Vec::new();
 
         /*
             We iterate through the different each text region and draw its respective translation
@@ -215,7 +218,7 @@ impl Replacer {
         */
         for i in 0..self.translated_text.len() {
             let (x, y) = self.origins[i];
-            let region = self.text_regions.get(i)?;
+            let region = self.original_text_regions.get(i)?;
             let text = self.translated_text[i].clone();
 
             let width = region.cols();
@@ -226,6 +229,8 @@ impl Replacer {
 
             let region =
                 core::Mat::roi(&self.original_image, core::Rect2i::new(x, y, width, height))?;
+
+            new_origins.push((x, y));
 
             // Get blank, white canvas to draw translated text on
             let mut canvas = image_conversion::get_blank_buffer(&region)?;
@@ -429,6 +434,6 @@ impl Replacer {
             cv_vector.push(image_conversion::image_buffer_to_mat(canvas)?);
         }
 
-        Ok(cv_vector)
+        Ok((cv_vector, new_origins))
     }
 }
