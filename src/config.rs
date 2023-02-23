@@ -11,6 +11,7 @@ pub struct Config {
     pub input: String,
     pub output: String,
     pub model: String,
+    pub data: String,
     pub padding: u16,
     pub input_mode: InputMode,
     pub single: bool,
@@ -19,11 +20,11 @@ pub struct Config {
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    #[arg(long, help = "Pass '-e' or '--extract' to extract text from images.")]
+    #[arg(long, help = "Pass '--extract' to extract text from images.")]
     pub extract: bool,
     #[arg(
         long,
-        help = "Pass '-r' or '--replace' to replace text regions in input images from a JSON containing translated text"
+        help = "Pass '--replace' to replace text regions in input images from a JSON containing translated text"
     )]
     pub replace: bool,
     #[arg(
@@ -43,9 +44,15 @@ struct Cli {
     #[arg(
         short,
         long,
-        help = "Model Path - A path to a detection model must be specified (ONNX format)."
+        help = "YoloV5 Model Path - A path to a detection model must be specified (ONNX format)."
     )]
     pub model: PathBuf,
+    #[arg(
+        short,
+        long,
+        help = "Libtesseract Data Path - Specify path to libtesseract data folder."
+    )]
+    pub data: Option<PathBuf>,
     #[arg(
         short,
         long,
@@ -67,6 +74,7 @@ enum PathType {
     Output(PathBuf),
     Text(Option<PathBuf>),
     Model(PathBuf),
+    Data(PathBuf),
 }
 
 impl std::fmt::Display for PathType {
@@ -75,6 +83,7 @@ impl std::fmt::Display for PathType {
             PathType::Input(_) => write!(f, "Input"),
             PathType::Output(_) => write!(f, "Output"),
             PathType::Model(_) => write!(f, "Model"),
+            PathType::Data(_) => write!(f, "Data"),
             PathType::Text(_) => write!(f, "Text"),
         }
     }
@@ -112,6 +121,8 @@ impl Config {
         // Make sure the model file is in the ONNX format
         validation::validate_model(&cli.model)?;
 
+        let data_path = validation::validate_data(&cli.data)?;
+
         // If in replace mode, make sure the text file is a JSON
         if cli.replace {
             if let Some(text_path) = cli.text {
@@ -132,6 +143,7 @@ impl Config {
             input: Self::path_into_string(&PathType::Input(cli.input))?,
             output: Self::path_into_string(&PathType::Output(output))?,
             model: Self::path_into_string(&PathType::Model(cli.model))?,
+            data: Self::path_into_string(&PathType::Data(data_path))?,
             padding,
             input_mode,
             single: cli.single,
@@ -144,6 +156,7 @@ impl Config {
             PathType::Input(path) => path,
             PathType::Output(path) => path,
             PathType::Model(path) => path,
+            PathType::Data(path) => path,
             PathType::Text(Some(path)) => path,
             PathType::Text(None) => return Ok(String::new()),
         };

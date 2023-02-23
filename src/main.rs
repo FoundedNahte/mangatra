@@ -31,7 +31,7 @@ impl Runtime {
 
         let detector = Arc::new(Mutex::new(Detector::new(&config.model, config.padding)?));
 
-        let ocr = Arc::new(Mutex::new(Ocr::new("C:/tools/tesseract/tessdata")?));
+        let ocr = Arc::new(Mutex::new(Ocr::new(&config.data)?));
 
         Ok(Runtime {
             config,
