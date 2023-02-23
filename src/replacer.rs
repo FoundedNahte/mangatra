@@ -237,8 +237,6 @@ impl Replacer {
             let (width, height) = canvas.dimensions();
             let height = height as i32;
 
-            let start_x = width / 16;
-            let mut start_y = height / 20;
             let stop_x = width - (width / 16);
 
             // Load manga font from assets
@@ -410,11 +408,17 @@ impl Replacer {
                 }
             }
 
+            let num_lines = lines.len() as i32;
+            let first_line_height = drawing::text_size(scale, &font, &lines[0]).1;
+            let mut start_y = (height - (num_lines * first_line_height)) / 2;
+
             for line in lines {
+                let (line_width, line_height) = drawing::text_size(scale, &font, &line);
+                let start_x = (width as i32 - line_width) / 2;
                 drawing::draw_text_mut(
                     &mut canvas,
                     Rgb([0u8, 0u8, 0u8]),
-                    start_x as i32,
+                    start_x,
                     start_y,
                     scale,
                     &font,
@@ -422,7 +426,7 @@ impl Replacer {
                 );
 
                 // 15 is an arbitrary number used to account for space between lines
-                start_y += text_height + 15;
+                start_y += line_height;
             }
 
             canvases.push(canvas);
