@@ -20,7 +20,7 @@ impl Ocr {
         let mut extracted_text: Vec<String> = Vec::new();
 
         // Iterate over each text region and extract the text
-        for bbox in text_boxes.iter() {
+        for bbox in text_boxes.into_iter() {
             let encoded_data = Self::encode_in_tiff(&bbox)?;
 
             self.leptess.set_image_from_mem(&encoded_data[..])?;
@@ -38,9 +38,9 @@ impl Ocr {
     // We encode each text region as a TIFF file
     fn encode_in_tiff(data: &core::Mat) -> Result<Vec<u8>> {
         let mut buffer: core::Vector<u8> = core::Vector::new();
-        let mut copied_buffer: Vec<u8> = vec![0; buffer.len()];
-
         imgcodecs::imencode(".tiff", &data, &mut buffer, &core::Vector::new())?;
+
+        let mut copied_buffer: Vec<u8> = vec![0; buffer.len()];
         copied_buffer[..].copy_from_slice(buffer.as_slice());
 
         Ok(copied_buffer)
