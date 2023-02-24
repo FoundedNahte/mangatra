@@ -304,6 +304,7 @@ impl Replacer {
 
             let width_of_space = drawing::text_size(scale, &font, " ").0;
 
+            // Initially break the text segment into lines that fit within the region
             for word in split_text {
                 let (text_width, _) = drawing::text_size(scale, &font, word);
 
@@ -329,9 +330,14 @@ impl Replacer {
 
             let mut lines: Vec<String> = Vec::new();
 
+            /*
+                Since we sometimes have long words, some lines may still not fit within the region.
+                Now we break up individual words if they are causing their lines to be too long.
+            */
             for line in temp_lines {
                 let (text_width, _) = drawing::text_size(scale, &font, &line);
 
+                // Check if a line is still too long
                 if text_width > stop_x as i32 - self.padding as i32 {
                     let num_words = line
                         .split(' ')
@@ -350,7 +356,9 @@ impl Replacer {
                         let mut original_line: String = chars.iter().collect();
                         let mut new_line: Vec<char> = Vec::new();
 
-                        while drawing::text_size(scale, &font, &original_line).0
+                        let hypen_width = drawing::text_size(scale, &font, "-").0;
+
+                        while drawing::text_size(scale, &font, &original_line).0 + hypen_width
                             > stop_x as i32 - self.padding as i32
                         {
                             // We move the last char from the original line to the beginning of the new line
@@ -365,6 +373,7 @@ impl Replacer {
                         }
 
                         // Push the updated original line
+                        original_line.push('-');
                         lines.push(original_line);
 
                         // Push the new line
