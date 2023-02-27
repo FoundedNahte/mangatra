@@ -155,7 +155,10 @@ impl Replacer {
 
         // Expand the top left corner
         let ori_pixel = image_buffer.get_pixel(tl_x, tl_y);
-        while image_buffer.get_pixel(tl_x - 1, tl_y + 1) == ori_pixel {
+        while let Some(pixel) = image_buffer.get_pixel_checked(tl_x - 1, tl_y - 1) {
+            if pixel != ori_pixel {
+                break;
+            }
             tl_x -= 1;
             tl_y -= 1;
             tl_length += 1;
@@ -163,7 +166,10 @@ impl Replacer {
 
         // Expand the top right corner
         let ori_pixel = image_buffer.get_pixel(tr_x, tr_y);
-        while image_buffer.get_pixel(tr_x + 1, tr_y + 1) == ori_pixel {
+        while let Some(pixel) = image_buffer.get_pixel_checked(tr_x + 1, tr_y - 1) {
+            if pixel != ori_pixel {
+                break;
+            }
             tr_x += 1;
             tr_y -= 1;
             tr_length += 1;
@@ -171,7 +177,10 @@ impl Replacer {
 
         // Expand the bottom left corner
         let ori_pixel = image_buffer.get_pixel(bl_x, bl_y);
-        while image_buffer.get_pixel(bl_x - 1, bl_y - 1) == ori_pixel {
+        while let Some(pixel) = image_buffer.get_pixel_checked(bl_x - 1, bl_y + 1) {
+            if pixel != ori_pixel {
+                break;
+            }
             bl_x -= 1;
             bl_y += 1;
             bl_length += 1;
@@ -179,7 +188,10 @@ impl Replacer {
 
         // Expand the bottom right corner
         let ori_pixel = image_buffer.get_pixel(br_x, br_y);
-        while image_buffer.get_pixel(br_x + 1, br_y - 1) == ori_pixel {
+        while let Some(pixel) = image_buffer.get_pixel_checked(br_x + 1, br_y + 1) {
+            if pixel != ori_pixel {
+                break;
+            }
             br_x += 1;
             br_y += 1;
             br_length += 1;
@@ -417,26 +429,29 @@ impl Replacer {
                 }
             }
 
+            println!("TEST");
+
             // Center the text
             let num_lines = lines.len() as i32;
-            let first_line_height = drawing::text_size(scale, &font, &lines[0]).1;
-            let mut start_y = (height - (num_lines * first_line_height)) / 2;
+            if num_lines != 0 {
+                let first_line_height = drawing::text_size(scale, &font, &lines[0]).1;
+                let mut start_y = (height - (num_lines * first_line_height)) / 2;
 
-            for line in lines {
-                let (line_width, line_height) = drawing::text_size(scale, &font, &line);
-                let start_x = (width as i32 - line_width) / 2;
-                drawing::draw_text_mut(
-                    &mut canvas,
-                    Rgb([0u8, 0u8, 0u8]),
-                    start_x,
-                    start_y,
-                    scale,
-                    &font,
-                    &line,
-                );
+                for line in lines {
+                    let (line_width, line_height) = drawing::text_size(scale, &font, &line);
+                    let start_x = (width as i32 - line_width) / 2;
+                    drawing::draw_text_mut(
+                        &mut canvas,
+                        Rgb([0u8, 0u8, 0u8]),
+                        start_x,
+                        start_y,
+                        scale,
+                        &font,
+                        &line,
+                    );
 
-                // 15 is an arbitrary number used to account for space between lines
-                start_y += line_height;
+                    start_y += line_height;
+                }
             }
 
             canvases.push(canvas);
