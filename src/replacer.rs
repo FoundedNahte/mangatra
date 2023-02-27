@@ -429,8 +429,6 @@ impl Replacer {
                 }
             }
 
-            println!("TEST");
-
             // Center the text
             let num_lines = lines.len() as i32;
             if num_lines != 0 {
