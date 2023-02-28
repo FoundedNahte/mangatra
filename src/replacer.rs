@@ -35,7 +35,7 @@ impl Replacer {
     }
 
     pub fn replace_text_regions(&self) -> Result<core::Mat> {
-        let (new_text_regions, new_origins) = self.write_text()?;
+        let (new_text_regions, new_origins, origin_flags) = self.write_text()?;
 
         let full_width = self.original_image.cols();
         let full_height = self.original_image.rows();
@@ -125,6 +125,52 @@ impl Replacer {
                     highgui::destroy_all_windows()?;
             */
             temp_image = result;
+
+            #[cfg(feature = "debug")]
+            {
+                use imageproc::rect::Rect;
+
+                let tl_br_flag = origin_flags.get(i).unwrap();
+                let mut temp_image_buffer = image_conversion::mat_to_image_buffer(&temp_image)?;
+
+                drawing::draw_hollow_rect_mut(
+                    &mut temp_image_buffer,
+                    Rect::at(x, y).of_size(width as u32, height as u32),
+                    Rgb([0, 255, 0]),
+                );
+
+                if *tl_br_flag {
+                    drawing::draw_filled_circle_mut(
+                        &mut temp_image_buffer,
+                        (x, y),
+                        5,
+                        Rgb([255, 0, 0]),
+                    );
+
+                    drawing::draw_filled_circle_mut(
+                        &mut temp_image_buffer,
+                        (x + width as i32, y + height as i32),
+                        5,
+                        Rgb([255, 0, 0]),
+                    );
+                } else {
+                    drawing::draw_filled_circle_mut(
+                        &mut temp_image_buffer,
+                        (x + width as i32, y),
+                        5,
+                        Rgb([255, 0, 0]),
+                    );
+
+                    drawing::draw_filled_circle_mut(
+                        &mut temp_image_buffer,
+                        (x, y + height as i32),
+                        5,
+                        Rgb([255, 0, 0]),
+                    );
+                }
+
+                temp_image = image_conversion::image_buffer_to_mat(temp_image_buffer)?;
+            }
         }
 
         Ok(temp_image)
@@ -138,7 +184,7 @@ impl Replacer {
         old_width: Width,
         old_height: Height,
         original: &core::Mat,
-    ) -> Result<(Coordinates, Width, Height)> {
+    ) -> Result<(Coordinates, Width, Height, bool)> {
         let (mut tl_x, mut tl_y) = (tl_x as u32, tl_y as u32);
         let old_width = old_width as u32;
         let old_height = old_height as u32;
@@ -199,11 +245,13 @@ impl Replacer {
 
         let new_width;
         let new_height;
+        let mut tl_br_flag = false;
 
         // Determine which pair of opposite corners is smaller
         if (tl_length + br_length) < (bl_length + tr_length) {
             new_width = br_x - tl_x;
             new_height = br_y - tl_y;
+            tl_br_flag = true;
         } else {
             new_width = tr_x - bl_x;
             new_height = bl_y - tr_y;
@@ -216,13 +264,15 @@ impl Replacer {
             (tl_x as i32, tl_y as i32),
             new_width as i32,
             new_height as i32,
+            tl_br_flag,
         ))
     }
 
     // Write replace japanese text with english text
-    fn write_text(&self) -> Result<(core::Vector<core::Mat>, Vec<Coordinates>)> {
+    fn write_text(&self) -> Result<(core::Vector<core::Mat>, Vec<Coordinates>, Vec<bool>)> {
         let mut canvases: Vec<ImageBuffer<Rgb<u8>, Vec<u8>>> = Vec::new();
         let mut new_origins: Vec<Coordinates> = Vec::new();
+        let mut origin_flags: Vec<bool> = Vec::new();
 
         /*
             We iterate through the different each text region and draw its respective translation
@@ -236,7 +286,7 @@ impl Replacer {
             let width = region.cols();
             let height = region.rows();
 
-            let ((x, y), width, height) =
+            let ((x, y), width, height, tl_br_flag) =
                 self.expand_text_region((x, y), width, height, &self.original_image)?;
 
             let region =
@@ -252,7 +302,7 @@ impl Replacer {
             let stop_x = width - (width / 16);
 
             // Load manga font from assets
-            let font = Vec::from(include_bytes!("../assets/mangat.ttf") as &[u8]);
+            let font = Vec::from(include_bytes!("../assets/wildwordsroman.ttf") as &[u8]);
             let font = Font::try_from_vec(font).expect("Could not unwrap Font.");
 
             let mut curr_line_size = 0;
@@ -452,6 +502,8 @@ impl Replacer {
                 }
             }
 
+            origin_flags.push(tl_br_flag);
+
             canvases.push(canvas);
         }
 
@@ -461,6 +513,6 @@ impl Replacer {
             cv_vector.push(image_conversion::image_buffer_to_mat(canvas)?);
         }
 
-        Ok((cv_vector, new_origins))
+        Ok((cv_vector, new_origins, origin_flags))
     }
 }

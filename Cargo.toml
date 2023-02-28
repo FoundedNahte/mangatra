@@ -4,6 +4,9 @@ authors = ["Ethan Lau"]
 version = "0.1.0"
 edition = "2021"
 
+[features]
+debug = []
+
 [lib]
 path = "src/lib.rs"
 
@@ -25,6 +28,7 @@ rusttype = "0.9.3"
 clap = { version = "4.0.32", features = ["derive"] }
 rust-ini = "0.18.0"
 rayon = "1.6.1"
+indicatif = { version = "0.17.3", features = ["rayon"] }
 
 [dev-dependencies]
 assert_cmd = "2.0.7"

@@ -1,4 +1,5 @@
 use anyhow::{Error, Result};
+use indicatif::{ParallelProgressIterator, ProgressBar, ProgressIterator};
 use mangatra::config::{Config, InputMode};
 use mangatra::detection::Detector;
 use mangatra::ocr::Ocr;
@@ -12,6 +13,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 #[derive(Deserialize, Debug, Clone)]
 struct Json {
@@ -69,6 +71,7 @@ impl Runtime {
             let image_data: Vec<Result<core::Mat, Error>> = if self.config.single {
                 input_images
                     .iter()
+                    .progress()
                     .map(|input_path| {
                         Self::translate_image(
                             input_path,
@@ -81,6 +84,7 @@ impl Runtime {
             } else {
                 input_images
                     .par_iter()
+                    .progress_count(input_images.len() as u64)
                     .map(|input_path| {
                         Self::translate_image(
                             input_path,
@@ -410,9 +414,12 @@ impl Runtime {
 }
 
 fn main() -> Result<()> {
-    let mut runtime = Runtime::new()?;
+    let before = Instant::now();
 
+    let mut runtime = Runtime::new()?;
     runtime.run()?;
+
+    println!("Finished in {:.2?} secs", before.elapsed());
 
     Ok(())
 }
