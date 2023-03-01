@@ -42,14 +42,10 @@ impl Detector {
 
         let mut predictions: cv::core::Vector<cv::core::Mat> = cv::core::Vector::new();
 
-        println!("RUNNING INFERENCE");
-
         self.model.forward(
             &mut predictions,
             &self.model.get_unconnected_out_layers_names()?,
         )?;
-
-        println!("INFERENCE SUCCESSFUL");
 
         let data = predictions.get(0)?;
 

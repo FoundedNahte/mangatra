@@ -12,7 +12,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
 
 #[derive(Deserialize, Debug, Clone)]
@@ -22,24 +22,14 @@ struct Json {
 
 // Runtime struct that holds configuration and other needed components for translation
 pub struct Runtime {
-    config: Config,
-    detector: Arc<Mutex<Detector>>,
-    ocr: Arc<Mutex<Ocr>>,
+    config: Arc<Config>,
 }
 
 impl Runtime {
     pub fn new() -> Result<Runtime> {
-        let config = Config::parse()?;
+        let config = Arc::new(Config::parse()?);
 
-        let detector = Arc::new(Mutex::new(Detector::new(&config.model, config.padding)?));
-
-        let ocr = Arc::new(Mutex::new(Ocr::new(&config.data)?));
-
-        Ok(Runtime {
-            config,
-            detector,
-            ocr,
-        })
+        Ok(Runtime { config })
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -56,12 +46,7 @@ impl Runtime {
 
     fn run_translation(&mut self) -> Result<()> {
         if self.config.input_mode == InputMode::Image {
-            let final_image = Self::translate_image(
-                &self.config.input,
-                self.config.padding,
-                &self.ocr,
-                &self.detector,
-            )?;
+            let final_image = Self::translate_image(self.config.clone(), &self.config.input)?;
 
             image_conversion::mat_to_image_buffer(&final_image)?.save(&self.config.output)?;
         } else {
@@ -72,27 +57,13 @@ impl Runtime {
                 input_images
                     .iter()
                     .progress()
-                    .map(|input_path| {
-                        Self::translate_image(
-                            input_path,
-                            self.config.padding,
-                            &self.ocr,
-                            &self.detector,
-                        )
-                    })
+                    .map(|input_path| Self::translate_image(self.config.clone(), input_path))
                     .collect()
             } else {
                 input_images
                     .par_iter()
                     .progress_count(input_images.len() as u64)
-                    .map(|input_path| {
-                        Self::translate_image(
-                            input_path,
-                            self.config.padding,
-                            &self.ocr,
-                            &self.detector,
-                        )
-                    })
+                    .map(|input_path| Self::translate_image(self.config.clone(), input_path))
                     .collect()
             };
 
@@ -121,7 +92,7 @@ impl Runtime {
     // Main function for extraction mode. Depending on input mode, will extract text from a single image or multiple.
     fn extract_mode(&mut self) -> Result<()> {
         if self.config.input_mode == InputMode::Image {
-            let data = Self::extract_text(&self.config.input, &self.ocr, &self.detector)?;
+            let data = Self::extract_text(self.config.clone(), &self.config.input)?;
 
             std::fs::write(&self.config.output, serde_json::to_string_pretty(&data)?)?;
         } else {
@@ -131,12 +102,12 @@ impl Runtime {
             let image_data: Vec<Result<Value, Error>> = if self.config.single {
                 input_images
                     .iter()
-                    .map(|input_path| Self::extract_text(input_path, &self.ocr, &self.detector))
+                    .map(|input_path| Self::extract_text(self.config.clone(), input_path))
                     .collect()
             } else {
                 input_images
                     .par_iter()
-                    .map(|input_path| Self::extract_text(input_path, &self.ocr, &self.detector))
+                    .map(|input_path| Self::extract_text(self.config.clone(), input_path))
                     .collect()
             };
 
@@ -162,12 +133,7 @@ impl Runtime {
 
             let data = serde_json::from_str::<Json>(&data)?;
 
-            let final_image = Self::replace_text(
-                &self.config.input,
-                &data,
-                self.config.padding,
-                &self.detector,
-            )?;
+            let final_image = Self::replace_text(self.config.clone(), &data, &self.config.input)?;
 
             image_conversion::mat_to_image_buffer(&final_image)?.save(&self.config.output)?;
         } else {
@@ -180,7 +146,7 @@ impl Runtime {
                     .iter()
                     .zip(text_data.iter())
                     .map(|(input_path, data)| {
-                        Self::replace_text(input_path, data, self.config.padding, &self.detector)
+                        Self::replace_text(self.config.clone(), data, input_path)
                     })
                     .collect()
             } else {
@@ -188,7 +154,7 @@ impl Runtime {
                     .par_iter()
                     .zip(text_data.par_iter())
                     .map(|(input_path, data)| {
-                        Self::replace_text(input_path, data, self.config.padding, &self.detector)
+                        Self::replace_text(self.config.clone(), data, input_path)
                     })
                     .collect()
             };
@@ -216,26 +182,13 @@ impl Runtime {
     }
 
     // Translation helper function used in both single and multi image translation functions.
-    fn translate_image(
-        input: &str,
-        padding: u16,
-        ocr: &Arc<Mutex<Ocr>>,
-        detector: &Arc<Mutex<Detector>>,
-    ) -> Result<core::Mat> {
-        let text_regions;
-        let origins;
+    fn translate_image(config: Arc<Config>, input: &str) -> Result<core::Mat> {
+        let mut detector = Detector::new(&config.model, config.padding)?;
+        let mut ocr = Ocr::new(&config.data)?;
 
-        {
-            let detector = &mut *detector.lock().unwrap();
-            (text_regions, origins) = detector.run_inference(input)?;
-        }
+        let (text_regions, origins) = detector.run_inference(input)?;
 
-        let extracted_text;
-
-        {
-            let ocr = &mut *ocr.lock().unwrap();
-            extracted_text = ocr.extract_text(&text_regions)?;
-        }
+        let extracted_text = ocr.extract_text(&text_regions)?;
 
         let translated_text = translate(extracted_text)?;
 
@@ -247,7 +200,7 @@ impl Runtime {
             translated_text,
             origins,
             original_image,
-            padding,
+            config.padding,
         )?;
 
         let final_image = replacer.replace_text_regions()?;
@@ -256,24 +209,13 @@ impl Runtime {
     }
 
     // Text extraction helper function to extract and return text from a single image
-    fn extract_text(
-        input: &str,
-        ocr: &Arc<Mutex<Ocr>>,
-        detector: &Arc<Mutex<Detector>>,
-    ) -> Result<Value> {
-        let text_regions;
+    fn extract_text(config: Arc<Config>, input: &str) -> Result<Value> {
+        let mut detector = Detector::new(&config.model, config.padding)?;
+        let mut ocr = Ocr::new(&config.data)?;
 
-        {
-            let detector = &mut *detector.lock().unwrap();
-            text_regions = detector.run_inference(input)?.0;
-        }
+        let (text_regions, _) = detector.run_inference(input)?;
 
-        let extracted_text;
-
-        {
-            let ocr = &mut *ocr.lock().unwrap();
-            extracted_text = ocr.extract_text(&text_regions)?;
-        }
+        let extracted_text = ocr.extract_text(&text_regions)?;
 
         let data = json!({ "text": extracted_text });
 
@@ -281,19 +223,10 @@ impl Runtime {
     }
 
     // Replacement helper function to replace text in single image and return a OpenCV Mat
-    fn replace_text(
-        input: &str,
-        data: &Json,
-        padding: u16,
-        detector: &Arc<Mutex<Detector>>,
-    ) -> Result<core::Mat> {
-        let text_regions;
-        let origins;
+    fn replace_text(config: Arc<Config>, data: &Json, input: &str) -> Result<core::Mat> {
+        let mut detector = Detector::new(&config.model, config.padding)?;
 
-        {
-            let detector = &mut *detector.lock().unwrap();
-            (text_regions, origins) = detector.run_inference(input)?;
-        }
+        let (text_regions, origins) = detector.run_inference(input)?;
 
         let original_image = image::open(input)?;
         let original_image = image_conversion::image_buffer_to_mat(original_image.to_rgb8())?;
@@ -303,7 +236,7 @@ impl Runtime {
             data.text.clone(),
             origins,
             original_image,
-            padding,
+            config.padding,
         )?;
 
         let final_image = replacer.replace_text_regions()?;

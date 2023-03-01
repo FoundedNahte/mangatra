@@ -386,7 +386,10 @@ impl Replacer {
                 }
             }
 
-            println!("lines: {temp_lines:?}");
+            #[cfg(feature = "debug")]
+            {
+                println!("lines: {temp_lines:?}");
+            }
 
             temp_lines.push(curr_line);
 
