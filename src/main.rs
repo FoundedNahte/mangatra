@@ -429,8 +429,6 @@ impl Runtime {
             }
         }
 
-        println!("{text_paths:?}");
-
         validation::validate_replace_mode(&input_stems, &text_paths)?;
 
         for text_path in text_paths.into_iter() {
