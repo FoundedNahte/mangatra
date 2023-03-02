@@ -30,7 +30,7 @@ struct Cli {
     #[arg(
         short,
         long,
-        help = "If using in \"replace\" mode, a path to a translated text json must be specified"
+        help = "If using in \"replace\" mode, a path to a translated text json or folder must be specified"
     )]
     pub text: Option<PathBuf>,
     #[arg(short, long, help = "Input Path - Directory of JPGs or a single JPG")]
@@ -38,7 +38,7 @@ struct Cli {
     #[arg(
         short,
         long,
-        help = "Optional Output Path - Specify output location for text or image outputs. If not specified, application will revert to the current directory."
+        help = "Optional Output Path - Specify output location for text or image outputs. If not specified, application will either create the file or folder in the current directory."
     )]
     pub output: Option<PathBuf>,
     #[arg(

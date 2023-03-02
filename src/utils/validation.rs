@@ -1,4 +1,5 @@
 use anyhow::{bail, ensure, Result};
+use std::collections::HashSet;
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -34,7 +35,36 @@ pub fn validate_text(text: &Path) -> Result<()> {
             }
         }
     } else {
-        bail!("Text file must be a JSON file.");
+        if !text.is_dir() {
+            bail!("Text file must be a JSON file.");
+        }
+
+        Ok(())
+    }
+}
+
+pub fn validate_replace_mode(input_stems: &[String], text_paths: &[PathBuf]) -> Result<()> {
+    let output_hash = &text_paths
+        .iter()
+        .filter_map(|path| match path.file_stem() {
+            Some(stem) => stem.to_str().map(|s| s.to_string()),
+            None => None,
+        })
+        .collect::<HashSet<String>>();
+
+    let mut validated = true;
+
+    for input_stem in input_stems {
+        if !output_hash.contains(input_stem) {
+            validated = false;
+            eprintln!("{input_stem} does not have a corresponding text file.");
+        }
+    }
+
+    if validated {
+        Ok(())
+    } else {
+        bail!("All input images must have a corresponding text file.");
     }
 }
 
