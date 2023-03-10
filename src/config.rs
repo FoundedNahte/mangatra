@@ -126,7 +126,9 @@ impl Config {
         // If in replace mode, make sure the text file is a JSON
         if cli.replace {
             if let Some(text_path) = cli.text {
-                validation::validate_text(&text_path)?;
+                if !text_path.is_dir() {
+                    validation::validate_text(&text_path)?;
+                }
 
                 text = Some(text_path);
             }

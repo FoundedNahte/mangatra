@@ -35,11 +35,7 @@ pub fn validate_text(text: &Path) -> Result<()> {
             }
         }
     } else {
-        if !text.is_dir() {
-            bail!("Text file must be a JSON file.");
-        }
-
-        Ok(())
+        bail!("Text file must be a JSON file.");
     }
 }
 
