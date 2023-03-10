@@ -73,16 +73,30 @@ impl Detector {
         let mut text_regions: cv::core::Vector<cv::core::Mat> = cv::core::Vector::new();
         let mut origins: Vec<(i32, i32)> = Vec::new();
 
+        let width = original_image.cols();
+        let height = original_image.rows();
+
         for bbox in boxes {
-            let padded_bbox: Rect2i = Rect2i::new(
-                bbox.x,
-                bbox.y,
-                bbox.width + self.padding as i32,
-                bbox.height + self.padding as i32,
-            );
+            let mut x = bbox.x;
+            let mut y = bbox.y;
+            let mut bbox_width = bbox.width;
+            let mut bbox_height = bbox.height;
+
+            if (bbox.width + (self.padding as i32 * 2)) < width
+                && (bbox.height + (self.padding as i32 * 2)) < height
+                && (bbox.x - self.padding as i32 > 0)
+                && (bbox.y - self.padding as i32 > 0)
+            {
+                x = bbox.x - self.padding as i32;
+                y = bbox.y - self.padding as i32;
+                bbox_width = bbox.width + (self.padding as i32 * 2);
+                bbox_height = bbox.height + (self.padding as i32 * 2);
+            }
+
+            let padded_bbox: Rect2i = Rect2i::new(x, y, bbox_width, bbox_height);
 
             text_regions.push(cv::core::Mat::roi(&original_image, padded_bbox)?);
-            origins.push((bbox.x, bbox.y));
+            origins.push((x, y));
         }
 
         Ok((text_regions, origins))

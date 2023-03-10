@@ -201,46 +201,63 @@ impl Replacer {
 
         // Expand the top left corner
         let ori_pixel = image_buffer.get_pixel(tl_x, tl_y);
-        while let Some(pixel) = image_buffer.get_pixel_checked(tl_x - 1, tl_y - 1) {
-            if pixel != ori_pixel {
+        while tl_x - 1 > 0 && tl_y - 1 > 0 {
+            if let Some(pixel) = image_buffer.get_pixel_checked(tl_x - 1, tl_y - 1) {
+                if pixel != ori_pixel {
+                    break;
+                }
+
+                tl_x -= 1;
+                tl_y -= 1;
+                tl_length += 1;
+            } else {
                 break;
             }
-            tl_x -= 1;
-            tl_y -= 1;
-            tl_length += 1;
         }
 
         // Expand the top right corner
-        let ori_pixel = image_buffer.get_pixel(tr_x, tr_y);
-        while let Some(pixel) = image_buffer.get_pixel_checked(tr_x + 1, tr_y - 1) {
-            if pixel != ori_pixel {
+        while tr_x < old_width && tr_y > 0 {
+            if let Some(pixel) = image_buffer.get_pixel_checked(tr_x + 1, tr_y - 1) {
+                if pixel != ori_pixel {
+                    break;
+                }
+
+                tr_x += 1;
+                tr_y -= 1;
+                tr_length += 1;
+            } else {
                 break;
             }
-            tr_x += 1;
-            tr_y -= 1;
-            tr_length += 1;
         }
 
         // Expand the bottom left corner
-        let ori_pixel = image_buffer.get_pixel(bl_x, bl_y);
-        while let Some(pixel) = image_buffer.get_pixel_checked(bl_x - 1, bl_y + 1) {
-            if pixel != ori_pixel {
+        while bl_x > 0 && bl_y + 1 < old_height {
+            if let Some(pixel) = image_buffer.get_pixel_checked(bl_x - 1, bl_y + 1) {
+                if pixel != ori_pixel {
+                    break;
+                }
+
+                bl_x -= 1;
+                bl_y += 1;
+                bl_length += 1;
+            } else {
                 break;
             }
-            bl_x -= 1;
-            bl_y += 1;
-            bl_length += 1;
         }
 
         // Expand the bottom right corner
-        let ori_pixel = image_buffer.get_pixel(br_x, br_y);
-        while let Some(pixel) = image_buffer.get_pixel_checked(br_x + 1, br_y + 1) {
-            if pixel != ori_pixel {
+        while br_x + 1 < old_width && br_y + 1 < old_height {
+            if let Some(pixel) = image_buffer.get_pixel_checked(br_x + 1, br_y + 1) {
+                if pixel != ori_pixel {
+                    break;
+                }
+
+                br_x += 1;
+                br_y += 1;
+                br_length += 1;
+            } else {
                 break;
             }
-            br_x += 1;
-            br_y += 1;
-            br_length += 1;
         }
 
         let new_width;
