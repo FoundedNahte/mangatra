@@ -9,18 +9,18 @@ type Coordinates = (i32, i32);
 type Width = i32;
 type Height = i32;
 
-pub struct Replacer {
+pub struct Replacer<'a> {
     original_text_regions: core::Vector<core::Mat>,
-    translated_text: Vec<String>,
+    translated_text: &'a Vec<String>,
     origins: Vec<(i32, i32)>,
     original_image: core::Mat,
     padding: u16,
 }
 
-impl Replacer {
+impl<'a> Replacer<'a> {
     pub fn new(
         original_text_regions: core::Vector<core::Mat>,
-        translated_text: Vec<String>,
+        translated_text: &Vec<String>,
         origins: Vec<(i32, i32)>,
         original_image: core::Mat,
         padding: u16,

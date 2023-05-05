@@ -32,6 +32,7 @@ impl Runtime {
         Ok(Runtime { config })
     }
 
+    #[cfg_attr(feature = "flame_it", flame)]
     pub fn run(&mut self) -> Result<()> {
         if self.config.extract_mode {
             self.extract_mode()?;
@@ -46,7 +47,7 @@ impl Runtime {
 
     fn run_translation(&mut self) -> Result<()> {
         if self.config.input_mode == InputMode::Image {
-            let final_image = Self::translate_image(self.config.clone(), &self.config.input)?;
+            let final_image = Self::translate_image(Arc::clone(&self.config), &self.config.input)?;
 
             image_conversion::mat_to_image_buffer(&final_image)?.save(&self.config.output)?;
         } else {
@@ -59,7 +60,8 @@ impl Runtime {
                     .zip(output_paths.into_iter())
                     .progress()
                     .for_each(|(input_path, output_path)| {
-                        let final_image = Self::translate_image(self.config.clone(), &input_path);
+                        let final_image =
+                            Self::translate_image(Arc::clone(&self.config), &input_path);
 
                         match (final_image, output_path.to_str()) {
                             // Write to output path
@@ -92,7 +94,8 @@ impl Runtime {
                     .zip(output_paths.into_par_iter())
                     .progress_count(total_length)
                     .for_each(|(input_path, output_path)| {
-                        let final_image = Self::translate_image(self.config.clone(), &input_path);
+                        let final_image =
+                            Self::translate_image(Arc::clone(&self.config), &input_path);
 
                         match (final_image, output_path.to_str()) {
                             // Write to output path
@@ -126,7 +129,7 @@ impl Runtime {
     // Main function for extraction mode. Depending on input mode, will extract text from a single image or multiple.
     fn extract_mode(&mut self) -> Result<()> {
         if self.config.input_mode == InputMode::Image {
-            let data = Self::extract_text(self.config.clone(), &self.config.input)?;
+            let data = Self::extract_text(Arc::clone(&self.config), &self.config.input)?;
 
             std::fs::write(&self.config.output, serde_json::to_string_pretty(&data)?)?;
         } else {
@@ -138,7 +141,7 @@ impl Runtime {
                     .zip(output_paths.into_iter())
                     .progress()
                     .for_each(|(input_path, output_path)| {
-                        let data_result = Self::extract_text(self.config.clone(), &input_path);
+                        let data_result = Self::extract_text(Arc::clone(&self.config), &input_path);
 
                         match data_result {
                             Ok(data) => match serde_json::to_string_pretty(&data) {
@@ -160,7 +163,7 @@ impl Runtime {
                     .zip(output_paths.into_par_iter())
                     .progress_count(total_length)
                     .for_each(|(input_path, output_path)| {
-                        let data_result = Self::extract_text(self.config.clone(), &input_path);
+                        let data_result = Self::extract_text(Arc::clone(&self.config), &input_path);
 
                         match data_result {
                             Ok(data) => match serde_json::to_string_pretty(&data) {
@@ -188,7 +191,8 @@ impl Runtime {
 
             let data = serde_json::from_str::<Json>(&data)?;
 
-            let final_image = Self::replace_text(self.config.clone(), &data, &self.config.input)?;
+            let final_image =
+                Self::replace_text(Arc::clone(&self.config), &data, &self.config.input)?;
 
             image_conversion::mat_to_image_buffer(&final_image)?.save(&self.config.output)?;
         } else {
@@ -204,7 +208,7 @@ impl Runtime {
                     .progress()
                     .for_each(|((input_path, data), output_path)| {
                         let image_data =
-                            Self::replace_text(self.config.clone(), &data, &input_path);
+                            Self::replace_text(Arc::clone(&self.config), &data, &input_path);
 
                         match (image_data, output_path.to_str()) {
                             // Write to output path
@@ -239,7 +243,7 @@ impl Runtime {
                     .progress_count(total_length)
                     .for_each(|((input_path, data), output_path)| {
                         let image_data =
-                            Self::replace_text(self.config.clone(), &data, &input_path);
+                            Self::replace_text(Arc::clone(&self.config), &data, &input_path);
 
                         match (image_data, output_path.to_str()) {
                             // Write to output path
@@ -286,7 +290,7 @@ impl Runtime {
 
         let replacer = Replacer::new(
             text_regions,
-            translated_text,
+            &translated_text,
             origins,
             original_image,
             config.padding,
@@ -322,7 +326,7 @@ impl Runtime {
 
         let replacer = Replacer::new(
             text_regions,
-            data.text.clone(),
+            &data.text,
             origins,
             original_image,
             config.padding,
@@ -450,6 +454,7 @@ impl Runtime {
     }
 }
 
+#[cfg_attr(feature = "flame_it", flame)]
 fn main() -> Result<()> {
     let before = Instant::now();
 

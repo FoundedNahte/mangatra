@@ -141,11 +141,11 @@ impl Config {
         Ok(Config {
             extract_mode: cli.extract,
             replace_mode: cli.replace,
-            text: Self::path_into_string(&PathType::Text(text))?,
-            input: Self::path_into_string(&PathType::Input(cli.input))?,
-            output: Self::path_into_string(&PathType::Output(output))?,
-            model: Self::path_into_string(&PathType::Model(cli.model))?,
-            data: Self::path_into_string(&PathType::Data(data_path))?,
+            text: Self::path_into_string(PathType::Text(text))?,
+            input: Self::path_into_string(PathType::Input(cli.input))?,
+            output: Self::path_into_string(PathType::Output(output))?,
+            model: Self::path_into_string(PathType::Model(cli.model))?,
+            data: Self::path_into_string(PathType::Data(data_path))?,
             padding,
             input_mode,
             single: cli.single,
@@ -153,7 +153,7 @@ impl Config {
     }
 
     // Helper function to test if paths are valid as well as determine InputMode for input and output
-    fn path_into_string(path: &PathType) -> Result<String> {
+    fn path_into_string(path: PathType) -> Result<String> {
         let pathbuf = match &path {
             PathType::Input(path) => path,
             PathType::Output(path) => path,
@@ -162,7 +162,7 @@ impl Config {
             PathType::Text(Some(path)) => path,
             PathType::Text(None) => return Ok(String::new()),
         };
-        match pathbuf.clone().to_str() {
+        match pathbuf.to_str() {
             Some(path_string) => Ok(path_string.to_string()),
             None => {
                 bail!("Make sure {path} is UTF-8 comaptible.")
@@ -276,7 +276,7 @@ mod tests {
     fn test_path_into_string() {
         let utf8_path = Path::new("./temp.jpg");
 
-        match Config::path_into_string(&PathType::Input(utf8_path.to_path_buf())) {
+        match Config::path_into_string(PathType::Input(utf8_path.to_path_buf())) {
             Ok(s) => {
                 assert_eq!(&s, "./temp.jpg")
             }
