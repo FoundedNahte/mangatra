@@ -1,5 +1,8 @@
 use anyhow::Result;
+use globwalk::GlobWalkerBuilder;
+use indexmap::IndexMap;
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressIterator};
+use itertools::Itertools;
 use mangatra::config::{Config, InputMode};
 use mangatra::detection::Detector;
 use mangatra::ocr::Ocr;
@@ -10,14 +13,20 @@ use opencv::core;
 use rayon::prelude::*;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
 #[derive(Deserialize, Debug, Clone)]
 struct Json {
-    pub text: Vec<String>,
+    #[serde(with = "indexmap::serde_seq")]
+    pub text: IndexMap<String, String>,
+}
+
+impl From<IndexMap<String, String>> for Json {
+    fn from(text: IndexMap<String, String>) -> Json {
+        Json { text }
+    }
 }
 
 // Runtime struct that holds configuration and other needed components for translation
@@ -32,7 +41,6 @@ impl Runtime {
         Ok(Runtime { config })
     }
 
-    #[cfg_attr(feature = "flame_it", flame)]
     pub fn run(&mut self) -> Result<()> {
         if self.config.extract_mode {
             self.extract_mode()?;
@@ -207,8 +215,11 @@ impl Runtime {
                     .zip(output_paths.into_iter())
                     .progress()
                     .for_each(|((input_path, data), output_path)| {
-                        let image_data =
-                            Self::replace_text(Arc::clone(&self.config), &data, &input_path);
+                        let image_data = Self::replace_text(
+                            Arc::clone(&self.config),
+                            &Json::from(data),
+                            &input_path,
+                        );
 
                         match (image_data, output_path.to_str()) {
                             // Write to output path
@@ -242,8 +253,11 @@ impl Runtime {
                     .zip(output_paths.into_par_iter())
                     .progress_count(total_length)
                     .for_each(|((input_path, data), output_path)| {
-                        let image_data =
-                            Self::replace_text(Arc::clone(&self.config), &data, &input_path);
+                        let image_data = Self::replace_text(
+                            Arc::clone(&self.config),
+                            &Json::from(data),
+                            &input_path,
+                        );
 
                         match (image_data, output_path.to_str()) {
                             // Write to output path
@@ -283,14 +297,20 @@ impl Runtime {
 
         let extracted_text = ocr.extract_text(&text_regions)?;
 
-        let translated_text = translate(extracted_text)?;
+        let translated_text = translate(&extracted_text)?;
+
+        let text_pairs = extracted_text
+            .iter()
+            .zip(translated_text.iter())
+            .map(|(original, translation)| (original.as_str(), translation.as_str()))
+            .collect::<IndexMap<&str, &str>>();
 
         let original_image = image::open(input)?;
         let original_image = image_conversion::image_buffer_to_mat(original_image.to_rgb8())?;
 
         let replacer = Replacer::new(
             text_regions,
-            &translated_text,
+            &text_pairs,
             origins,
             original_image,
             config.padding,
@@ -310,7 +330,15 @@ impl Runtime {
 
         let extracted_text = ocr.extract_text(&text_regions)?;
 
-        let data = json!({ "text": extracted_text });
+        let text_pairs: IndexMap<&str, &str> =
+            extracted_text
+                .iter()
+                .fold(IndexMap::new(), |mut acc, text| {
+                    acc.insert(text.as_str(), "");
+                    acc
+                });
+
+        let data = json!(text_pairs);
 
         Ok(data)
     }
@@ -342,104 +370,101 @@ impl Runtime {
         &self,
         extract_mode: bool,
     ) -> Result<(Vec<String>, Vec<PathBuf>, Vec<String>)> {
-        let mut input_images: Vec<String> = Vec::new();
-        let mut output_paths: Vec<PathBuf> = Vec::new();
-        let mut file_stems: Vec<String> = Vec::new();
+        let image_walker = GlobWalkerBuilder::from_patterns(
+            &self.config.input,
+            &["*{jpg,JPG,jpeg,JPEG,png,PNG,webp,WEBP,tiff,TIFF}"],
+        )
+        .follow_links(false)
+        .build()?;
 
-        // Walking through the input directory appending image files to be processed
-        for result in fs::read_dir(&self.config.input)? {
-            match result {
-                Ok(dir_entry) => {
-                    let dir_entry_path = dir_entry.path();
+        Ok(image_walker
+            .into_iter()
+            .filter_map(|image| match image {
+                Ok(image) => {
+                    if let Some(image_path) = image.path().to_str() {
+                        match image.path().file_stem() {
+                            Some(file_stem) if file_stem.to_str().is_some() => {
+                                let file_stem = file_stem.to_str().unwrap();
 
-                    if !dir_entry_path.is_dir() {
-                        match validation::validate_image(&dir_entry.path()) {
-                            Ok(()) => {
-                                match dir_entry_path.to_str() {
-                                    Some(path_string) => match dir_entry_path.file_stem() {
-                                        Some(file_stem) if file_stem.to_str().is_some() => {
-                                            // Pattern guard ensures that to_str gives "Some"
-                                            let file_stem = file_stem.to_str().unwrap();
+                                let mut output_path = PathBuf::new();
 
-                                            // Create the output path for each text_file
-                                            let mut output_path = PathBuf::new();
+                                if extract_mode {
+                                    output_path.push(&self.config.output);
+                                    output_path.push(file_stem);
+                                    output_path.set_extension("json");
+                                } else {
+                                    let output_filename = format!("{file_stem}_output");
 
-                                            file_stems.push(file_stem.to_string());
-
-                                            if extract_mode {
-                                                output_path.push(&self.config.output);
-                                                output_path.push(file_stem);
-                                                output_path.set_extension("json");
-                                            } else {
-                                                let output_filename = format!("{file_stem}_output");
-
-                                                output_path.push(&self.config.output);
-                                                output_path.push(output_filename);
-                                                output_path.set_extension("png");
-                                            }
-
-                                            input_images.push(path_string.to_string());
-                                            output_paths.push(output_path);
-                                        }
-                                        _ => {
-                                            let bad_path = dir_entry_path.display();
-                                            eprintln!(
-                                                "{bad_path} needs to have a UTF-8 compatible name."
-                                            );
-                                        }
-                                    },
-                                    None => {
-                                        let bad_path = dir_entry_path.display();
-                                        eprintln!(
-                                            "{bad_path} needs to have a UTF-8 compatible name."
-                                        );
-                                    }
+                                    output_path.push(&self.config.output);
+                                    output_path.push(output_filename);
+                                    output_path.set_extension("png");
                                 }
+
+                                Some((image_path.to_string(), output_path, file_stem.to_string()))
                             }
-                            Err(e) => {
-                                eprintln!("{e}");
+                            _ => {
+                                eprintln!(
+                                    "{} needs to have a UTF-8 compatible name.",
+                                    image.path().display()
+                                );
+                                None
                             }
                         }
+                    } else {
+                        eprintln!(
+                            "{} needs to have a UTF-8 compatible name.",
+                            image.path().display()
+                        );
+                        None
                     }
                 }
                 Err(e) => {
                     eprintln!("{e}");
+                    None
                 }
-            }
-        }
-
-        Ok((input_images, output_paths, file_stems))
+            })
+            .multiunzip::<(Vec<String>, Vec<PathBuf>, Vec<String>)>())
     }
 
     // Get text data from text directory for replacement
-    fn walk_text_directory(&self, input_stems: Vec<String>) -> Result<Vec<Json>> {
-        let mut text_paths: Vec<PathBuf> = Vec::new();
-        let mut text_data: Vec<Json> = Vec::new();
+    fn walk_text_directory(
+        &self,
+        input_stems: Vec<String>,
+    ) -> Result<Vec<IndexMap<String, String>>> {
+        let text_walker = GlobWalkerBuilder::from_patterns(&self.config.text, &["*{json,JSON}"])
+            .follow_links(false)
+            .build()?;
 
-        for result in fs::read_dir(&self.config.text)? {
-            match result {
-                Ok(dir_entry) => {
-                    let dir_entry_path = dir_entry.path();
-
-                    if !dir_entry_path.is_dir() {
-                        if let Ok(()) = validation::validate_text(&dir_entry.path()) {
-                            text_paths.push(dir_entry_path);
-                        }
+        let text_paths = text_walker
+            .into_iter()
+            .filter_map(|text| match text {
+                Ok(text_res) => {
+                    if text_res.path().clone().to_str().is_none() {
+                        eprintln!(
+                            "{} needs to hve a UTF-8 compatible name.",
+                            text_res.path().display()
+                        );
+                        return None;
                     }
+                    Some(text_res.into_path())
                 }
                 Err(e) => {
                     eprintln!("{e}");
+                    None
                 }
-            }
-        }
+            })
+            .collect::<Vec<PathBuf>>();
 
-        validation::validate_replace_mode(&input_stems, &text_paths)?;
+        validation::validate_replace_mode(input_stems, &text_paths)?;
 
-        for text_path in text_paths.into_iter() {
+        let mut text_data: Vec<IndexMap<String, String>> = Vec::new();
+
+        for text_path in text_paths.iter() {
             match text_path.to_str() {
                 Some(path_string) => {
-                    let data =
-                        serde_json::from_str::<Json>(&std::fs::read_to_string(path_string)?)?;
+                    let data = serde_json::from_str::<IndexMap<String, String>>(
+                        &std::fs::read_to_string(path_string)?,
+                    )?;
 
                     text_data.push(data);
                 }
@@ -454,7 +479,6 @@ impl Runtime {
     }
 }
 
-#[cfg_attr(feature = "flame_it", flame)]
 fn main() -> Result<()> {
     let before = Instant::now();
 

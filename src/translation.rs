@@ -8,12 +8,12 @@ struct Request {
 }
 
 // Translation through Sugoi Translator
-pub fn translate(text: Vec<String>) -> Result<Vec<String>> {
+pub fn translate(text: &[String]) -> Result<Vec<String>> {
     let client = reqwest::blocking::Client::new();
 
     let json_data = Request {
         message: "translate sentences".to_string(),
-        content: text,
+        content: text.to_vec(),
     };
 
     let res = client

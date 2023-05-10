@@ -39,19 +39,19 @@ pub fn validate_text(text: &Path) -> Result<()> {
     }
 }
 
-pub fn validate_replace_mode(input_stems: &[String], text_paths: &[PathBuf]) -> Result<()> {
+pub fn validate_replace_mode(input_stems: Vec<String>, text_paths: &[PathBuf]) -> Result<()> {
     let output_hash = &text_paths
         .iter()
         .filter_map(|path| match path.file_stem() {
-            Some(stem) => stem.to_str().map(|s| s.to_string()),
+            Some(stem) => stem.to_str(),
             None => None,
         })
-        .collect::<HashSet<String>>();
+        .collect::<HashSet<&str>>();
 
     let mut validated = true;
 
     for input_stem in input_stems {
-        if !output_hash.contains(input_stem) {
+        if !output_hash.contains(input_stem.as_str()) {
             validated = false;
             eprintln!("{input_stem} does not have a corresponding text file.");
         }
