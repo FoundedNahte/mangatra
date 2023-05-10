@@ -2,6 +2,7 @@ use crate::utils::image_conversion;
 use anyhow::Result;
 use image::{self, ImageBuffer, Rgb};
 use imageproc::drawing;
+use indexmap::IndexMap;
 use opencv::{core, prelude::*};
 use rusttype::{Font, Scale};
 
@@ -9,25 +10,31 @@ type Coordinates = (i32, i32);
 type Width = i32;
 type Height = i32;
 
-pub struct Replacer<'a> {
+pub struct Replacer<'a, T>
+where
+    T: AsRef<str>,
+{
     original_text_regions: core::Vector<core::Mat>,
-    translated_text: &'a Vec<String>,
+    text_pairs: &'a IndexMap<T, T>,
     origins: Vec<(i32, i32)>,
     original_image: core::Mat,
     padding: u16,
 }
 
-impl<'a> Replacer<'a> {
+impl<'a, T> Replacer<'a, T>
+where
+    T: AsRef<str>,
+{
     pub fn new(
         original_text_regions: core::Vector<core::Mat>,
-        translated_text: &Vec<String>,
+        text_pairs: &'a IndexMap<T, T>,
         origins: Vec<(i32, i32)>,
         original_image: core::Mat,
         padding: u16,
-    ) -> Result<Replacer> {
+    ) -> Result<Replacer<'a, T>> {
         Ok(Replacer {
             original_text_regions,
-            translated_text,
+            text_pairs,
             origins,
             original_image,
             padding,
@@ -290,15 +297,18 @@ impl<'a> Replacer<'a> {
         let mut canvases: Vec<ImageBuffer<Rgb<u8>, Vec<u8>>> = Vec::new();
         let mut new_origins: Vec<Coordinates> = Vec::new();
         let mut origin_flags: Vec<bool> = Vec::new();
-
+        let translated_text = self
+            .text_pairs
+            .values()
+            .map(|text| text.as_ref())
+            .collect::<Vec<&str>>();
         /*
             We iterate through the different each text region and draw its respective translation
             onto a blank, white canvas.
         */
-        for i in 0..self.translated_text.len() {
+        for (i, text) in translated_text.iter().enumerate() {
             let (x, y) = self.origins[i];
             let region = self.original_text_regions.get(i)?;
-            let text = self.translated_text[i].clone();
 
             let width = region.cols();
             let height = region.rows();
