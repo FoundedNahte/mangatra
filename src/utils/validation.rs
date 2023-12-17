@@ -1,5 +1,8 @@
-use anyhow::{bail, Result};
-use std::path::Path;
+use anyhow::{bail, ensure, Result};
+use std::collections::HashSet;
+use std::env;
+use std::path::{Path, PathBuf};
+use tracing::error;
 
 // Validate that model path is in the ONNX file format
 pub fn validate_model(model: &Path) -> Result<()> {
@@ -37,6 +40,31 @@ pub fn validate_text(text: &Path) -> Result<()> {
     }
 }
 
+pub fn validate_replace_mode(input_stems: Vec<String>, text_paths: &[PathBuf]) -> Result<()> {
+    let output_hash = &text_paths
+        .iter()
+        .filter_map(|path| match path.file_stem() {
+            Some(stem) => stem.to_str(),
+            None => None,
+        })
+        .collect::<HashSet<&str>>();
+
+    let mut validated = true;
+
+    for input_stem in input_stems {
+        if !output_hash.contains(input_stem.as_str()) {
+            validated = false;
+            error!("{input_stem} does not have a corresponding text file")
+        }
+    }
+
+    if validated {
+        Ok(())
+    } else {
+        bail!("All input images must have a corresponding text file.");
+    }
+}
+
 // Validate image is in one of allowed image formats
 pub fn validate_image(image: &Path) -> Result<()> {
     if let Some(extension) = image.extension() {
@@ -55,25 +83,44 @@ pub fn validate_image(image: &Path) -> Result<()> {
     }
 }
 
+pub fn validate_data(data: &Option<PathBuf>) -> Result<PathBuf> {
+    match data {
+        Some(path) => {
+            ensure!(
+                path.is_dir(),
+                "Libtesseract data path must lead to a directory."
+            );
+            Ok(path.clone())
+        }
+        None => match env::var_os("TESSDATA_PREFIX") {
+            Some(path) => {
+                let path = PathBuf::from(path);
+                ensure!(
+                    path.is_dir(),
+                    "Libtesseract data path must lead to a directory."
+                );
+                Ok(path)
+            }
+            None => bail!("Libtesseract data path must be specified."),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
 
-    use crate::utils::validation::{validate_image, validate_model, validate_text};
+    use crate::utils::validation::{validate_data, validate_image, validate_model, validate_text};
     use tempfile::TempDir;
 
     #[test]
     fn test_model_validation() {
         let good_model_path = Path::new("./model.onnx");
-
         let bad_model_path = Path::new("./model.ONNX");
-
         let test_dir_path = TempDir::new().unwrap();
 
         let good_result = validate_model(good_model_path);
-
         let bad_err = validate_model(bad_model_path).unwrap_err();
-
         let dir_err = validate_model(test_dir_path.path()).unwrap_err();
 
         match good_result {
@@ -91,15 +138,11 @@ mod tests {
     #[test]
     fn test_text_validation() {
         let good_text_path = Path::new("./text.json");
-
         let bad_text_path = Path::new("./text.txt");
-
         let test_dir_path = TempDir::new().unwrap();
 
         let good_result = validate_text(good_text_path);
-
         let bad_err = validate_text(bad_text_path).unwrap_err();
-
         let dir_err = validate_text(test_dir_path.path()).unwrap_err();
 
         match good_result {
@@ -173,6 +216,27 @@ mod tests {
         assert_eq!(
             format!("{err3}"),
             "Image file must be in one of the specified formats: JPG, PNG, WebP."
+        );
+    }
+
+    #[test]
+    fn test_data_validation() {
+        let good_data_path = TempDir::new().unwrap();
+        let bad_data_path = Path::new("./bad_data.txt");
+
+        let good_result = validate_data(&Some(good_data_path.path().to_path_buf()));
+        let dir_err = validate_data(&Some(bad_data_path.to_path_buf())).unwrap_err();
+
+        match good_result {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{e}")
+            }
+        }
+
+        assert_eq!(
+            format!("{dir_err}"),
+            "Libtesseract data path must lead to a directory."
         );
     }
 }

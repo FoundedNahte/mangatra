@@ -27,7 +27,7 @@ pub fn mat_to_image_buffer(image: &core::Mat) -> Result<ImageBuffer<Rgb<u8>, Vec
         .collect();
 
     let numel = shape.iter().product();
-    let ptr = image.ptr(0)? as *const u8;
+    let ptr = image.ptr(0)?;
 
     let slice = unsafe { slice::from_raw_parts(ptr, numel) };
 

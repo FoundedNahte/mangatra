@@ -7,8 +7,8 @@ pub struct Ocr {
 }
 
 impl Ocr {
-    pub fn new(data_path: &str) -> Result<Ocr> {
-        let leptess = LepTess::new(Some(data_path), "jpn_vert")?;
+    pub fn new(lang: &str, data_path: &str) -> Result<Ocr> {
+        let leptess = LepTess::new(Some(data_path), lang)?;
 
         Ok(Ocr { leptess })
     }
@@ -19,10 +19,12 @@ impl Ocr {
 
         let mut extracted_text: Vec<String> = Vec::new();
 
-        for (count, bbox) in (0_i32..).zip(text_boxes.into_iter()) {
-            let encoded_data = Self::encode_in_tiff(&bbox, count)?;
+        // Iterate over each text region and extract the text
+        for bbox in text_boxes.into_iter() {
+            let encoded_data = Self::encode_in_tiff(&bbox)?;
 
             self.leptess.set_image_from_mem(&encoded_data[..])?;
+            self.leptess.set_fallback_source_resolution(70);
 
             let mut text = self.leptess.get_utf8_text()?;
             text = text.replace('\n', "");
@@ -35,15 +37,11 @@ impl Ocr {
 
     // The Tesseract API only accepts in-memory files in the TIFF format;
     // We encode each text region as a TIFF file
-    fn encode_in_tiff(data: &core::Mat, count: i32) -> Result<Vec<u8>> {
+    fn encode_in_tiff(data: &core::Mat) -> Result<Vec<u8>> {
         let mut buffer: core::Vector<u8> = core::Vector::new();
-
-        imgcodecs::imwrite(&format!("{count}.png"), data, &core::Vector::new())?;
-
         imgcodecs::imencode(".tiff", &data, &mut buffer, &core::Vector::new())?;
 
         let mut copied_buffer: Vec<u8> = vec![0; buffer.len()];
-
         copied_buffer[..].copy_from_slice(buffer.as_slice());
 
         Ok(copied_buffer)

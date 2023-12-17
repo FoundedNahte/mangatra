@@ -3,6 +3,7 @@ use anyhow::Result;
 use ndarray::{self as nd, Axis};
 use opencv::{self as cv, core::Rect2i, core::ToInputArray, dnn, prelude::*};
 use std::cmp::max;
+use tracing::instrument;
 
 type Origin = (i32, i32);
 type TextRegions = cv::core::Vector<cv::core::Mat>;
@@ -18,15 +19,14 @@ pub struct Detector {
 
 impl Detector {
     pub fn new(model_path: &str, padding: u16) -> Result<Detector> {
-        let model = dnn::read_net(model_path, "", "")?;
-
+        let model = dnn::read_net_from_onnx(model_path)?;
         Ok(Detector { model, padding })
     }
 
     // Main detection function to extract text regions from image
+    #[instrument(name = "run_inference", skip(self, input_image))]
     pub fn run_inference(&mut self, input_image: &str) -> Result<(TextRegions, Vec<Origin>)> {
         let input: cv::core::Mat = Self::format_image(input_image)?;
-
         let result: cv::core::Mat = dnn::blob_from_image(
             &input.input_array()?,
             1.0 / 255.0,
@@ -42,14 +42,10 @@ impl Detector {
 
         let mut predictions: cv::core::Vector<cv::core::Mat> = cv::core::Vector::new();
 
-        println!("RUNNING INFERENCE");
-
         self.model.forward(
             &mut predictions,
             &self.model.get_unconnected_out_layers_names()?,
         )?;
-
-        println!("INFERENCE SUCCESSFUL");
 
         let data = predictions.get(0)?;
 
@@ -77,16 +73,30 @@ impl Detector {
         let mut text_regions: cv::core::Vector<cv::core::Mat> = cv::core::Vector::new();
         let mut origins: Vec<(i32, i32)> = Vec::new();
 
+        let width = original_image.cols();
+        let height = original_image.rows();
+
         for bbox in boxes {
-            let padded_bbox: Rect2i = Rect2i::new(
-                bbox.x,
-                bbox.y,
-                bbox.width + self.padding as i32,
-                bbox.height + self.padding as i32,
-            );
+            let mut x = bbox.x;
+            let mut y = bbox.y;
+            let mut bbox_width = bbox.width;
+            let mut bbox_height = bbox.height;
+
+            if (bbox.width + (self.padding as i32 * 2)) < width
+                && (bbox.height + (self.padding as i32 * 2)) < height
+                && (bbox.x - self.padding as i32 > 0)
+                && (bbox.y - self.padding as i32 > 0)
+            {
+                x = bbox.x - self.padding as i32;
+                y = bbox.y - self.padding as i32;
+                bbox_width = bbox.width + (self.padding as i32 * 2);
+                bbox_height = bbox.height + (self.padding as i32 * 2);
+            }
+
+            let padded_bbox: Rect2i = Rect2i::new(x, y, bbox_width, bbox_height);
 
             text_regions.push(cv::core::Mat::roi(&original_image, padded_bbox)?);
-            origins.push((bbox.x, bbox.y));
+            origins.push((x, y));
         }
 
         Ok((text_regions, origins))
@@ -122,6 +132,7 @@ impl Detector {
         highgui::wait_key(2000)?;
         highgui::destroy_all_windows()?;
         */
+
         Ok(resized)
     }
 
