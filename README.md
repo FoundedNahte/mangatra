@@ -24,7 +24,7 @@ It uses YOLOv5 to identify text boxes, OpenCV for image manipulation, and libtes
 
 | Cleaned |
 :-------------------------:
-![](https://github.com/FoundedNahte/mangatra/blob/master/assets/cleaned.png =597x438)
+<img src="https://github.com/FoundedNahte/mangatra/blob/master/assets/cleaned.png" width="597" height="438" />
 
 </div>
 
