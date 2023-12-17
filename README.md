@@ -15,31 +15,49 @@ It can function as a tool for translators as well as an end-to-end solution for 
 It uses YOLOv5 to identify text boxes, OpenCV for image manipulation, and libtesseract for OCR capabilities. Because of the use of YOLOv5 for text box detection, the application can also be generalized to other forms of text besides manga.
 
 ## Demo
-| Input             |  Output |
+<div align="center">
+
+### Translating
+
+| Input             | Output |
 :-------------------------:|:-------------------------:
-![](https://github.com/FoundedNahte/mangatra/blob/master/assets/input.png)  |  ![](https://github.com/FoundedNahte/mangatra/blob/master/assets/output.png)
+![](https://github.com/FoundedNahte/mangatra/blob/master/assets/input.png)  | ![](https://github.com/FoundedNahte/mangatra/blob/master/assets/output.png)
+
+### Cleaning
+
+<img src="https://github.com/FoundedNahte/mangatra/blob/master/assets/cleaned.png" width="400" height="300" />
+
+</div>
 
 ## Usage
 ```
-Usage: mangatra.exe [OPTIONS] --input <INPUT> --model <MODEL>
+Usage: mangatra [OPTIONS] --input <INPUT> --model <MODEL> --lang <LANG>
 
 Options:
-      --extract            Pass '--extract' to extract text from images.
-      --replace            Pass '--replace' to replace text regions in input images from a JSON containing translated text
-  -t, --text <TEXT>        If using in "replace" mode, a path to a translated text json or folder must be specified
-  -i, --input <INPUT>      Input Path - Directory of JPGs or a single JPG
-  -o, --output <OUTPUT>    Optional Output Path - Specify output location for text or image outputs. If not specified, application will either create the file or folder in the current directory.
-  -m, --model <MODEL>      YoloV5 Model Path - A path to a detection model must be specified (ONNX format).
-  -d, --data <DATA>        Libtesseract Data Path - Specify path to libtesseract data folder. If no path is specified, the application will look under the 'TESSDATA_PREFIX' environment variable.
-  -p, --padding <PADDING>  Specify size of padding for text regions (Tinkering may improve OCR)
-      --single             Use single-threading when processing a folder
+  -i, --input <INPUT>      Input path for a directory of images or single image
+  -o, --output <OUTPUT>    Specify output location for text or image outputs. If not specified, application will use the same directory as the input
+  -t, --text <TEXT>        [Optional] Specify a path to the translated JSONs
+  -m, --model <MODEL>      Path to the YOLOv5 detection weights (ONNX format)
+  -l, --lang <LANG>        Specify the language for tesseract
+  -d, --data <DATA>        [Optional] Specify path to the tessdata folder for tesseract. If no path is specified, the application will look under the 'TESSDATA_PREFIX' environment variable
+  -p, --padding <PADDING>  Specify size of padding for text regions
+      --single             Use single-threading for image processing
+      --clean              If set, the program will output cleaned pages in PNG format in the output directory
   -h, --help               Print help information
   -V, --version            Print version information
 ```
-## Installation
 
-## Roadmap
-- [ ] Configuration Files
-- [ ] Better Replacement
-- [ ] Modular Translation with Python scripts
-- [ ] GUI
+## Installation
+You need three things:
+- OpenCV
+- tesseract
+- tesseract language data
+### Debian-based linux systems
+OpenCV and tesseract
+```
+sudo apt-get install libopencv-dev libleptonica-dev libtesseract-dev
+```
+Tesseract language specific data
+```
+sudo apt-get install tesseract-ocr-jpn
+```
