@@ -17,7 +17,7 @@ It uses YOLOv5 to identify text boxes, OpenCV for image manipulation, and libtes
 ## Demo
 | Input             | Cleaned | Output
 :-------------------------:|:-------------------------:|:-------------------------:
-![](https://github.com/FoundedNahte/mangatra/blob/master/assets/input.png)  |  ![](https://github.com/FoundedNahte/mangatra/blob/master/assets/clean.png) | ![](https://github.com/FoundedNahte/mangatra/blob/master/assets/output.png)
+![](https://github.com/FoundedNahte/mangatra/blob/master/assets/input.png)  |  ![](https://github.com/FoundedNahte/mangatra/blob/master/assets/cleaned.png) | ![](https://github.com/FoundedNahte/mangatra/blob/master/assets/output.png)
 
 ## Usage
 ```
