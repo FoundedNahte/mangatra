@@ -33,9 +33,6 @@ FROM debian:bullseye-slim AS runtime
 WORKDIR mangatra
 COPY --from=builder /mangatra/target/release/mangatra /mangatra
 
-#RUN echo "deb http://archive.ubuntu.com/ubuntu bionic universe" >> /etc/apt/sources.list
-#RUN add-apt-repository main \ add-apt-repository universe \ add-apt-repository restricted \ add-apt-repository multiverse
-
 RUN apt-get -yq update && apt-get -yq upgrade && apt-get -yq install \
 	sudo \
 	openssl \

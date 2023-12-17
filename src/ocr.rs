@@ -7,8 +7,8 @@ pub struct Ocr {
 }
 
 impl Ocr {
-    pub fn new(data_path: &str) -> Result<Ocr> {
-        let leptess = LepTess::new(Some(data_path), "jpn_vert")?;
+    pub fn new(lang: &str, data_path: &str) -> Result<Ocr> {
+        let leptess = LepTess::new(Some(data_path), lang)?;
 
         Ok(Ocr { leptess })
     }
@@ -24,6 +24,7 @@ impl Ocr {
             let encoded_data = Self::encode_in_tiff(&bbox)?;
 
             self.leptess.set_image_from_mem(&encoded_data[..])?;
+            self.leptess.set_fallback_source_resolution(70);
 
             let mut text = self.leptess.get_utf8_text()?;
             text = text.replace('\n', "");

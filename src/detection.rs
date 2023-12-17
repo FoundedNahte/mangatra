@@ -3,6 +3,7 @@ use anyhow::Result;
 use ndarray::{self as nd, Axis};
 use opencv::{self as cv, core::Rect2i, core::ToInputArray, dnn, prelude::*};
 use std::cmp::max;
+use tracing::instrument;
 
 type Origin = (i32, i32);
 type TextRegions = cv::core::Vector<cv::core::Mat>;
@@ -18,15 +19,14 @@ pub struct Detector {
 
 impl Detector {
     pub fn new(model_path: &str, padding: u16) -> Result<Detector> {
-        let model = dnn::read_net(model_path, "", "")?;
-
+        let model = dnn::read_net_from_onnx(model_path)?;
         Ok(Detector { model, padding })
     }
 
     // Main detection function to extract text regions from image
+    #[instrument(name = "run_inference", skip(self, input_image))]
     pub fn run_inference(&mut self, input_image: &str) -> Result<(TextRegions, Vec<Origin>)> {
         let input: cv::core::Mat = Self::format_image(input_image)?;
-
         let result: cv::core::Mat = dnn::blob_from_image(
             &input.input_array()?,
             1.0 / 255.0,
@@ -132,6 +132,7 @@ impl Detector {
         highgui::wait_key(2000)?;
         highgui::destroy_all_windows()?;
         */
+
         Ok(resized)
     }
 

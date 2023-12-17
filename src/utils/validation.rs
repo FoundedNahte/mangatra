@@ -2,6 +2,7 @@ use anyhow::{bail, ensure, Result};
 use std::collections::HashSet;
 use std::env;
 use std::path::{Path, PathBuf};
+use tracing::error;
 
 // Validate that model path is in the ONNX file format
 pub fn validate_model(model: &Path) -> Result<()> {
@@ -53,7 +54,7 @@ pub fn validate_replace_mode(input_stems: Vec<String>, text_paths: &[PathBuf]) -
     for input_stem in input_stems {
         if !output_hash.contains(input_stem.as_str()) {
             validated = false;
-            eprintln!("{input_stem} does not have a corresponding text file.");
+            error!("{input_stem} does not have a corresponding text file")
         }
     }
 
