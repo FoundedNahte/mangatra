@@ -17,6 +17,7 @@ It uses YOLOv5 to identify text boxes, OpenCV for image manipulation, and libtes
 ## Demo
 <div align="center">
 
+<<<<<<< HEAD
 ### Translating
 
 | Input             | Output |
@@ -26,6 +27,9 @@ It uses YOLOv5 to identify text boxes, OpenCV for image manipulation, and libtes
 ### Cleaning
 
 <img src="https://github.com/FoundedNahte/mangatra/blob/master/assets/cleaned.png" width="400" height="300" />
+=======
+<a><img src="assets/sample.png" role="img"></a>
+>>>>>>> 7ecafa8 (Update README.md)
 
 </div>
 
