@@ -17,14 +17,17 @@ It uses YOLOv5 to identify text boxes, OpenCV for image manipulation, and libtes
 ## Demo
 <div align="center">
 
+### Translating
+
 | Input             | Output |
 :-------------------------:|:-------------------------:
 ![](https://github.com/FoundedNahte/mangatra/blob/master/assets/input.png)  | ![](https://github.com/FoundedNahte/mangatra/blob/master/assets/output.png)
 
+### Cleaning
 
 | Cleaned |
 :-------------------------:
-<img src="https://github.com/FoundedNahte/mangatra/blob/master/assets/cleaned.png" width="597" height="438" />
+![](https://github.com/FoundedNahte/mangatra/blob/master/assets/cleaned.png)
 
 </div>
 
