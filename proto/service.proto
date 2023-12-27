@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+import "messages.proto"
+
+service MangatraService {
+    // Cleans an image
+    rpc Clean (CleanRequest) returns (CleanResponse) {}
+    // Extracts text and corresponding bounding boxes from an image
+    rpc Extract (ExtractRequest) returns (ExtractResponse) {}
+    // Replaces text in a source image using a supplied list of Detections
+    rpc Replace (ReplaceRequest) returns (ReplaceResponse) {}
+    // Detects text boxes in an image and returns the bounding boxes
+    rpc Detect (DetectRequest) returns (DetectResponse) {}
+}

@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+// Representation of a bounding box for a text segment detected by YoloV5
+message Box {
+    int32 x = 1;
+    int32 y = 2;
+    int32 width = 3;
+    int32 height = 4;
+}
+
+// Representation of an extraction made by Mangatra (includes the source text and bounding box)
+message Detection {
+    string text = 1;
+    Box box = 2;
+}
+
+// Request for a request to clean an image
+message CleanRequest {
+    // The image to be cleaned
+    bytes image = 1;
+    // Optional parameter to specify padding (default = 10px)
+    optional int32 padding = 2;
+}
+
+// Response for a CleanRequest
+message CleanResponse {
+    // The cleaned image
+    bytes image = 1;
+}
+
+// Request for extraction of text and corresponding bounding boxes
+message ExtractRequest {
+    // The image to extract from
+    bytes image = 1;
+    // Optional parameter to specify padding (default = 10px)
+    optional int32 padding = 2;
+}
+
+// Response for a ExtractRequest
+message ExtractResponse {
+    // The detections/extractions made by Mangatra
+    repeated Detection extractions = 1;
+}
+
+// Request for the replacement of text in a source image
+message ReplaceRequest {
+    // Source image
+    bytes image = 1;
+    // Replacements to make in the source image (translated text and corresponding bounding box)
+    repeated Detection translations = 2;
+}
+
+// Response for a ReplaceRequest
+message ReplaceResponse {
+    // The resulting image
+    bytes image = 1;
+}
+
+// Request to only get bounding box detections from YoloV5 (intended to be used for creating new training data)
+message DetectRequest {
+    bytes image = 1;
+    optional int32 padding = 2;
+}
+
+// Response for a BoxRequest
+message DetectResponse {
+    // The detections made by YoloV5
+    repeated Box boxes = 1;
+}
