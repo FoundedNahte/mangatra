@@ -1,10 +1,12 @@
-use crate::utils::image_conversion;
 use anyhow::{anyhow, Result};
 use image::{self, Rgb};
 use imageproc::drawing;
-use indexmap::IndexMap;
+use itertools::izip;
 use opencv::{core, prelude::*};
 use rusttype::{Font, Scale};
+
+use crate::utils::image_conversion;
+use crate::DEFAULT_PADDING;
 
 type Coordinates = (i32, i32);
 type Width = i32;
@@ -21,34 +23,34 @@ struct ReplacementMat {
     pub diag: DiagOrientation,
 }
 
-pub struct Replacer<'a, T>
+pub struct Replacer<T>
 where
     T: AsRef<str>,
 {
     original_text_regions: core::Vector<core::Mat>,
-    text_pairs: Option<&'a IndexMap<T, T>>,
+    text: Option<Vec<T>>,
     origins: Vec<(i32, i32)>,
     original_image: core::Mat,
     padding: u16,
 }
 
-impl<'a, T> Replacer<'a, T>
+impl<T> Replacer<T>
 where
     T: AsRef<str>,
 {
     pub fn new(
         original_text_regions: core::Vector<core::Mat>,
-        text_pairs: Option<&'a IndexMap<T, T>>,
+        text: Option<Vec<T>>,
         origins: Vec<(i32, i32)>,
         original_image: core::Mat,
-        padding: u16,
-    ) -> Result<Replacer<'a, T>> {
+        padding: Option<u16>,
+    ) -> Result<Replacer<T>> {
         Ok(Replacer {
             original_text_regions,
-            text_pairs,
+            text,
             origins,
             original_image,
-            padding,
+            padding: padding.unwrap_or(DEFAULT_PADDING),
         })
     }
 
@@ -87,7 +89,7 @@ where
     fn get_blank_mats(&self) -> Result<Vec<ReplacementMat>> {
         let mut blank_mats: Vec<ReplacementMat> = Vec::new();
 
-        for ((x, y), region) in self.origins.iter().zip(self.original_text_regions.iter()) {
+        for ((x, y), region) in izip!(&self.origins, &self.original_text_regions) {
             let width = region.cols();
             let height = region.rows();
 
@@ -113,12 +115,8 @@ where
     fn write_text(&self) -> Result<Vec<ReplacementMat>> {
         let mut translated_mats: Vec<ReplacementMat> = Vec::new();
 
-        let translated_text = match self.text_pairs {
-            Some(text_map) => text_map
-                .values()
-                .map(|text| text.as_ref())
-                .collect::<Vec<&str>>(),
-            None => return Err(anyhow!("Translated text is missing")),
+        let Some(translated_text) = &self.text else {
+            return Err(anyhow!("Translated text is missing"));
         };
 
         /*
@@ -151,7 +149,7 @@ where
 
             let mut curr_line_size = 0;
 
-            let split_text = text.split(' ');
+            let split_text = text.as_ref().split(' ');
 
             let mut temp_lines: Vec<String> = Vec::new();
 

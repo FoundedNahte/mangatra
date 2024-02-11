@@ -227,9 +227,7 @@ impl Config {
                 None => panic!("Error trying to get the path root for {}", path.display()),
             },
             // Default path
-            None => {
-                Path::new(".").to_path_buf()
-            }
+            None => Path::new(".").to_path_buf(),
         };
         cleaned_page_path.push(&format!("{input_stem}_cleaned"));
 

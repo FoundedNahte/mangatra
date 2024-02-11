@@ -1,9 +1,12 @@
-use crate::utils::image_conversion;
 use anyhow::Result;
+use image::DynamicImage;
 use ndarray::{self as nd, Axis};
 use opencv::{self as cv, core::Rect2i, core::ToInputArray, dnn, prelude::*};
 use std::cmp::max;
 use tracing::instrument;
+
+use crate::utils::image_conversion::image_buffer_to_mat;
+use crate::DEFAULT_PADDING;
 
 type Origin = (i32, i32);
 type TextRegions = cv::core::Vector<cv::core::Mat>;
@@ -18,15 +21,21 @@ pub struct Detector {
 }
 
 impl Detector {
-    pub fn new(model_path: &str, padding: u16) -> Result<Detector> {
+    pub fn new(model_path: &str, padding: Option<u16>) -> Result<Detector> {
         let model = dnn::read_net_from_onnx(model_path)?;
-        Ok(Detector { model, padding })
+        Ok(Detector {
+            model,
+            padding: padding.unwrap_or(DEFAULT_PADDING),
+        })
     }
 
     // Main detection function to extract text regions from image
     #[instrument(name = "run_inference", skip(self, input_image))]
-    pub fn run_inference(&mut self, input_image: &str) -> Result<(TextRegions, Vec<Origin>)> {
-        let input: cv::core::Mat = Self::format_image(input_image)?;
+    pub fn run_inference(
+        &mut self,
+        input_image: &DynamicImage,
+    ) -> Result<(TextRegions, Vec<Origin>)> {
+        let input: cv::core::Mat = Self::format_image(image_buffer_to_mat(input_image.to_rgb8())?)?;
         let result: cv::core::Mat = dnn::blob_from_image(
             &input.input_array()?,
             1.0 / 255.0,
@@ -55,8 +64,7 @@ impl Detector {
 
         let boxes = detections.boxes;
 
-        let original_image = image::open(input_image)?;
-        let original_image = image_conversion::image_buffer_to_mat(original_image.to_rgb8())?;
+        let original_image = image_buffer_to_mat(input_image.to_rgb8())?;
         /*
             for i in 0..boxes.len() {
                 let classid = class_ids[i];
@@ -103,11 +111,7 @@ impl Detector {
     }
 
     // Helper function that pre-processes input image for the YoloV5 model
-    fn format_image(input_image: &str) -> Result<cv::core::Mat> {
-        let image = image::open(input_image)?;
-
-        let image = image_conversion::image_buffer_to_mat(image.to_rgb8())?;
-
+    fn format_image(image: cv::core::Mat) -> Result<cv::core::Mat> {
         let cols: i32 = image.cols();
         let rows: i32 = image.rows();
 

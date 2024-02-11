@@ -1,11 +1,13 @@
 syntax = "proto3";
 
+package mangatra;
+
 // Representation of a bounding box for a text segment detected by YoloV5
 message Box {
     int32 x = 1;
     int32 y = 2;
-    int32 width = 3;
-    int32 height = 4;
+    uint32 width = 3;
+    uint32 height = 4;
 }
 
 // Representation of an extraction made by Mangatra (includes the source text and bounding box)
@@ -19,7 +21,7 @@ message CleanRequest {
     // The image to be cleaned
     bytes image = 1;
     // Optional parameter to specify padding (default = 10px)
-    optional int32 padding = 2;
+    optional uint32 padding = 2;
 }
 
 // Response for a CleanRequest
@@ -33,7 +35,9 @@ message ExtractRequest {
     // The image to extract from
     bytes image = 1;
     // Optional parameter to specify padding (default = 10px)
-    optional int32 padding = 2;
+    optional uint32 padding = 2;
+    // String to specify the tesseract language
+    string lang = 3;
 }
 
 // Response for a ExtractRequest
@@ -46,8 +50,10 @@ message ExtractResponse {
 message ReplaceRequest {
     // Source image
     bytes image = 1;
+    // Optional parameter to specify padding of replacement text regions (default = 10px)
+    optional uint32 padding = 2;
     // Replacements to make in the source image (translated text and corresponding bounding box)
-    repeated Detection translations = 2;
+    repeated Detection translations = 3;
 }
 
 // Response for a ReplaceRequest
@@ -59,7 +65,7 @@ message ReplaceResponse {
 // Request to only get bounding box detections from YoloV5 (intended to be used for creating new training data)
 message DetectRequest {
     bytes image = 1;
-    optional int32 padding = 2;
+    optional uint32 padding = 2;
 }
 
 // Response for a BoxRequest
